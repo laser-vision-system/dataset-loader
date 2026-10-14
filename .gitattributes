@@ -1,0 +1,5 @@
+# Defaults to using LF.
+* text=auto eol=lf
+
+# Mark Cargo.lock as generated so it is collapsed in PRs.
+Cargo.lock linguist-generated=true
