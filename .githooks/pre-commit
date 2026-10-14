@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+echo "==> Running rustfmt..."
+cargo fmt -- --check
+
+echo "==> Running clippy..."
+cargo clippy --all-targets --no-deps
+#cargo clippy --all-targets --no-deps -- -D warnings
