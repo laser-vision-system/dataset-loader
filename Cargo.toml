@@ -30,10 +30,10 @@ broken_intra_doc_links = "deny"
 
 # ===== pedantic group lints ======
 
-pedantic = { level = "warn", priority = -1} # This should be upgraded to forbid in the future.
+pedantic = { level = "deny", priority = -1 }
 must_use_candidate = "allow" # We don't need to be constantly alerted to this.
-missing_errors_doc = "deny" # Consider upgrading in the future.
-missing_panics_doc = "deny" # Consider upgrading in the future.
+missing_errors_doc = "deny" # Documentation should be thorough
+missing_panics_doc = "deny" # Documentation should be thorough
 
 # ===== restriction group lints ======
 
