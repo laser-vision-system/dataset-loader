@@ -54,6 +54,10 @@ pub trait LaserItemBase: LaserItemType {
 	/// Convert the relative path to an absolute path with the use of a root.
 	///
 	/// You very likely do not need to call this method.
+	///
+	/// # Errors
+	///
+	/// If the path does not resolve as canonical.
 	fn resolve_paths(
 		&mut self,
 		root: &Path,
@@ -126,6 +130,10 @@ pub trait LaserItemTryFrom:
 	LaserItemBase + TryFrom<ImagePath, Error = LoaderError>
 {
 	/// Trivial conversion from [`PathBuf`] via [`ImagePath`].
+	///
+	/// # Errors
+	///
+	/// If the path is not a valid image path.
 	fn try_from_pathbuf(root: PathBuf) -> Result<Self> {
 		let image_path = ImagePath::try_from(root)?;
 		Self::try_from(image_path)
@@ -181,6 +189,11 @@ impl<T> BaseItem<T>
 where
 	T: NumericLike,
 {
+	/// Attach the root to the relative item path.
+	///
+	/// # Errors
+	///
+	/// If the path does not resolve as canonical.
 	fn resolve_root(
 		&mut self,
 		root: &Path,
@@ -253,7 +266,10 @@ pub(crate) mod tests {
 		}
 	}
 
-	#[expect(dead_code)]
+	#[expect(
+		dead_code,
+		reason = "Used to allow tests to return a type for chaining"
+	)]
 	struct SuccessfulImage(ImageType);
 
 	impl From<ImageType> for SuccessfulImage {
@@ -272,9 +288,7 @@ pub(crate) mod tests {
 		base: &str,
 		name: &str,
 	) -> PathBuf {
-		let mut path = PathBuf::from(base);
-		path.push(name);
-		path
+		PathBuf::from(base).join(name)
 	}
 
 	/// Get the last two parts from the name, separated by `_`.

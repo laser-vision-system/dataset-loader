@@ -249,7 +249,6 @@ mod tests {
 		ImagePath,
 		ImageType,
 		Intensity,
-		LaserItem as _,
 		LaserItemBase,
 		LaserItemType,
 	};
@@ -377,7 +376,7 @@ mod tests {
 		}
 	}
 
-	#[expect(dead_code)]
+	#[expect(dead_code, reason = "Dummy input for mapping")]
 	#[derive(Clone, Debug)]
 	struct LoadedItem {
 		image: ImageType,
@@ -415,7 +414,10 @@ mod tests {
 		}
 	}
 
-	#[expect(dead_code)]
+	#[expect(
+		dead_code,
+		reason = "Used to allow tests to return a type for chaining"
+	)]
 	struct SuccessfulImage(ImageType);
 
 	impl From<ImageType> for SuccessfulImage {
@@ -443,12 +445,7 @@ mod tests {
 		LaserDataset::try_new(
 			DummyMapper,
 			PathBuf::from(DATASET_PATH),
-			&[Box::new(|item| {
-				match *item.get_intensity() {
-					0..10 => false,
-					_ => true,
-				}
-			})],
+			&[Box::new(|item| matches!(*item.get_intensity(), 0..10))],
 		)
 		.inspect(|ds| println!("{ds}"))
 	}

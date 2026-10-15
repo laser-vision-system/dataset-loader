@@ -106,6 +106,11 @@ impl Display for AnalogousLaserItem {
 	}
 }
 
+/// Create the `analogous_laser` dataset loader.
+///
+/// # Errors
+///
+/// If the dataset fails to load.
 pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,

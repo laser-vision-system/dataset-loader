@@ -1,3 +1,8 @@
+#![expect(
+	clippy::expect_used,
+	reason = "This type handles the path validation internally"
+)]
+
 use std::{
 	borrow::{
 		Borrow,
@@ -24,8 +29,12 @@ pub struct ImagePath {
 	inner: PathBuf,
 }
 
-#[expect(clippy::expect_used, reason = "Usage is pre-validated")]
 impl ImagePath {
+	/// Attach a root path to the relative path and canonicalise.
+	///
+	/// # Errors
+	///
+	/// If the absolute path is non-canonical.
 	pub fn canonicalise_with(
 		&mut self,
 		root: &Path,
@@ -42,6 +51,10 @@ impl ImagePath {
 	}
 
 	/// Get the file extension for this item path.
+	///
+	/// # Panics
+	///
+	/// If the dataset item has an invalid path.
 	pub fn get_extension(&self) -> Cow<'_, str> {
 		self.inner
 			.extension()
@@ -50,6 +63,10 @@ impl ImagePath {
 	}
 
 	/// Get the file name for this item path.
+	///
+	/// # Panics
+	///
+	/// If the dataset item has an invalid path.
 	pub fn get_filename(&self) -> Cow<'_, str> {
 		self.inner
 			.file_stem()

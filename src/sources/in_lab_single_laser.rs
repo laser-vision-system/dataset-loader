@@ -107,6 +107,11 @@ impl Display for InLabSingleLaserItem {
 	}
 }
 
+/// Create the `in_lab_single_laser` dataset loader.
+///
+/// # Errors
+///
+/// If the dataset fails to load.
 pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,

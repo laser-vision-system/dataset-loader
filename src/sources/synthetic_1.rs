@@ -58,6 +58,11 @@ impl Display for Synthetic1Item {
 
 pub type Synthetic1Dataset<M, MO> = LaserDataset<M, Synthetic1Item, MO>;
 
+/// Create the `synthetic_1` dataset loader.
+///
+/// # Errors
+///
+/// If the dataset fails to load.
 pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,
@@ -92,7 +97,6 @@ pub(crate) mod tests {
 		item::{
 			ImagePath,
 			ImageType,
-			LaserItem as _,
 			LaserItemTryFrom as _,
 			tests::{
 				create_path,
@@ -136,7 +140,10 @@ pub(crate) mod tests {
 		}
 	}
 
-	#[expect(dead_code)]
+	#[expect(
+		dead_code,
+		reason = "Used to allow tests to return a type for chaining"
+	)]
 	struct SuccessfulImage(ImageType);
 
 	impl From<ImageType> for SuccessfulImage {
