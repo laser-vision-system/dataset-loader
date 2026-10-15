@@ -249,7 +249,7 @@ mod tests {
 		ImagePath,
 		ImageType,
 		Intensity,
-		LaserItem,
+		LaserItem as _,
 		LaserItemBase,
 		LaserItemType,
 	};
@@ -373,11 +373,11 @@ mod tests {
 				.map(|item| item.simple_display().to_string())
 				.collect();
 			let string = items.join("\n");
-			write!(f, "{}", string)
+			write!(f, "{string}")
 		}
 	}
 
-	#[allow(dead_code)]
+	#[expect(dead_code)]
 	#[derive(Clone, Debug)]
 	struct LoadedItem {
 		image: ImageType,
@@ -415,7 +415,7 @@ mod tests {
 		}
 	}
 
-	#[allow(dead_code)]
+	#[expect(dead_code)]
 	struct SuccessfulImage(ImageType);
 
 	impl From<ImageType> for SuccessfulImage {
@@ -433,19 +433,14 @@ mod tests {
 	#[test]
 	#[ignore = "intended for visual inspection"]
 	fn try_new_dataset_dummy_correct() -> Result<DummyDataset> {
-		let dataset = LaserDataset::try_new(
-			DummyMapper,
-			PathBuf::from(DATASET_PATH),
-			&[],
-		)
-		.inspect(|ds| println!("{}", ds));
-		dataset
+		LaserDataset::try_new(DummyMapper, PathBuf::from(DATASET_PATH), &[])
+			.inspect(|ds| println!("{ds}"))
 	}
 
 	#[test]
 	#[ignore = "intended for visual inspection"]
 	fn try_new_filtered_dataset_dummy_correct() -> Result<DummyDataset> {
-		let dataset = LaserDataset::try_new(
+		LaserDataset::try_new(
 			DummyMapper,
 			PathBuf::from(DATASET_PATH),
 			&[Box::new(|item| {
@@ -455,8 +450,7 @@ mod tests {
 				}
 			})],
 		)
-		.inspect(|ds| println!("{}", ds));
-		dataset
+		.inspect(|ds| println!("{ds}"))
 	}
 
 	#[test]
@@ -483,8 +477,7 @@ mod tests {
 			panic!("fuck")
 		};
 		println!(
-			"\n ===== Train:\n{}\n\n ===== Validate:\n{}\n\n ===== Test:\n{}",
-			train, validate, test
+			"\n ===== Train:\n{train}\n\n ===== Validate:\n{validate}\n\n ===== Test:\n{test}"
 		);
 	}
 }

@@ -92,8 +92,8 @@ pub(crate) mod tests {
 		item::{
 			ImagePath,
 			ImageType,
-			LaserItem,
-			LaserItemTryFrom,
+			LaserItem as _,
+			LaserItemTryFrom as _,
 			tests::{
 				create_path,
 				extract_parts_from_name,
@@ -136,7 +136,7 @@ pub(crate) mod tests {
 		}
 	}
 
-	#[allow(dead_code)]
+	#[expect(dead_code)]
 	struct SuccessfulImage(ImageType);
 
 	impl From<ImageType> for SuccessfulImage {
@@ -164,7 +164,7 @@ pub(crate) mod tests {
 			try_from_image_path_correct_min().expect("item should be created");
 		let output = item.to_string();
 
-		assert!(output.contains("0"));
+		assert!(output.contains('0'));
 		assert!(!output.contains("position"));
 		assert!(!output.contains("render_0000.png"));
 	}
@@ -195,25 +195,25 @@ pub(crate) mod tests {
 	fn try_from_pathbuf_incorrect_path_entirely() {
 		let image_path = PathBuf::from("completely random path");
 		let res = Synthetic1Item::try_from_pathbuf(image_path);
-		assert!(res.is_err());
+		res.unwrap_err();
 	}
 
 	#[test]
 	fn try_from_pathbuf_incorrect_file() {
 		let image_path = crate::item::tests::create_path(ITEM_PATH, "");
 		let res = Synthetic1Item::try_from_pathbuf(image_path);
-		assert!(res.is_err());
+		res.unwrap_err();
 	}
 
 	#[test]
 	fn load_image_after_image_path() -> Result<SuccessfulImage> {
 		let item = try_from_image_path_correct_max()?;
-		item.load().map(|v| v.into())
+		item.load().map(Into::into)
 	}
 
 	#[test]
 	fn load_image_after_pathbuf() -> Result<SuccessfulImage> {
 		let item = try_from_pathbuf_correct_max()?;
-		item.load().map(|v| v.into())
+		item.load().map(Into::into)
 	}
 }

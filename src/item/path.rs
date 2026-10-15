@@ -144,6 +144,6 @@ mod tests {
 	fn create_image_path_incorrect_filename() {
 		let path = PathBuf::from("./src/item/");
 		let res = ImagePath::try_from(path);
-		assert!(res.is_err());
+		res.unwrap_err();
 	}
 }

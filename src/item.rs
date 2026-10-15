@@ -253,7 +253,7 @@ pub(crate) mod tests {
 		}
 	}
 
-	#[allow(dead_code)]
+	#[expect(dead_code)]
 	struct SuccessfulImage(ImageType);
 
 	impl From<ImageType> for SuccessfulImage {
@@ -281,7 +281,7 @@ pub(crate) mod tests {
 	pub(crate) fn extract_parts_from_name(name: &str) -> Vec<&str> {
 		name.rsplit('_')
 			.enumerate()
-			.map_while(|(i, part)| if i < 2 { Some(part) } else { None })
+			.map_while(|(i, part)| (i < 2).then_some(part))
 			.collect()
 	}
 
@@ -302,38 +302,38 @@ pub(crate) mod tests {
 	#[test]
 	fn split_parts_one() {
 		let parts = extract_parts_from_name("render.png");
-		assert_eq!(parts.len(), 1)
+		assert_eq!(parts.len(), 1);
 	}
 
 	#[test]
 	fn split_parts_two() {
 		let parts = extract_parts_from_name("render_0012.png");
-		assert_eq!(parts.len(), 2)
+		assert_eq!(parts.len(), 2);
 	}
 
 	#[test]
 	fn split_parts_three_capped() {
 		let parts = extract_parts_from_name("render_0012_0012.png");
-		assert_eq!(parts.len(), 2)
+		assert_eq!(parts.len(), 2);
 	}
 
 	#[test]
 	fn parse_intensity_correct() {
 		let parsed = parse_intensity_as("0012").unwrap();
-		let intensity = Intensity::from(12u8);
+		let intensity = Intensity::from(12_u8);
 		assert_eq!(parsed, intensity);
 	}
 
 	#[test]
 	fn parse_intensity_incorrect_type() {
 		let parsed = parse_intensity_as::<u8>("2.1");
-		assert!(parsed.is_err());
+		parsed.unwrap_err();
 	}
 
 	#[test]
 	fn parse_intensity_too_large_for_type() {
 		let parsed = parse_intensity_as::<u8>("256");
-		assert!(parsed.is_err());
+		parsed.unwrap_err();
 	}
 
 	fn parse_base_item(input: &str) -> Option<BaseItem<u8>> {

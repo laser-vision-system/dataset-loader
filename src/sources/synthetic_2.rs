@@ -110,8 +110,8 @@ mod tests {
 		item::{
 			ImagePath,
 			ImageType,
-			LaserItem,
-			LaserItemTryFrom,
+			LaserItem as _,
+			LaserItemTryFrom as _,
 			tests::{
 				create_path,
 				extract_parts_from_name,
@@ -161,7 +161,7 @@ mod tests {
 		}
 	}
 
-	#[allow(dead_code)]
+	#[expect(dead_code)]
 	struct SuccessfulImage(ImageType);
 
 	impl From<ImageType> for SuccessfulImage {
@@ -220,25 +220,25 @@ mod tests {
 	fn try_from_pathbuf_incorrect_path_entirely() {
 		let image_path = PathBuf::from("completely random path");
 		let res = Synthetic2Item::try_from_pathbuf(image_path);
-		assert!(res.is_err());
+		res.unwrap_err();
 	}
 
 	#[test]
 	fn try_from_pathbuf_incorrect_file() {
 		let image_path = crate::item::tests::create_path(ITEM_PATH, "");
 		let res = Synthetic2Item::try_from_pathbuf(image_path);
-		assert!(res.is_err());
+		res.unwrap_err();
 	}
 
 	#[test]
 	fn load_image_after_image_path() -> Result<SuccessfulImage> {
 		let item = try_from_image_path_correct_max()?;
-		item.load().map(|v| v.into())
+		item.load().map(Into::into)
 	}
 
 	#[test]
 	fn load_image_after_pathbuf() -> Result<SuccessfulImage> {
 		let item = try_from_pathbuf_correct_max()?;
-		item.load().map(|v| v.into())
+		item.load().map(Into::into)
 	}
 }

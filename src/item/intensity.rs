@@ -160,11 +160,11 @@ mod tests {
 
 	#[test]
 	fn intensity_with_u8() {
-		let _ = Intensity::from(0u8);
+		let _ = Intensity::from(0_u8);
 	}
 
 	#[test]
 	fn intensity_with_f32() {
-		let _ = Intensity::from(0f32);
+		let _ = Intensity::from(0_f32);
 	}
 }
