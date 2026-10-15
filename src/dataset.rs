@@ -1,15 +1,31 @@
-use std::{fmt, path::Path};
+use std::{
+	fmt,
+	path::Path,
+};
 
 use burn::data::dataset::{
-	Dataset, InMemDataset,
-	transform::{Mapper, MapperDataset, SelectionDataset},
+	Dataset,
+	InMemDataset,
+	transform::{
+		Mapper,
+		MapperDataset,
+		SelectionDataset,
+	},
 };
 use serde::de::DeserializeOwned;
 
 use crate::{
-	Split, SplitType, Splitable,
-	error::{LoaderError, Result},
-	item::{LaserItem, LaserItemBase},
+	Split,
+	SplitType,
+	Splitable,
+	error::{
+		LoaderError,
+		Result,
+	},
+	item::{
+		LaserItem,
+		LaserItemBase,
+	},
 };
 
 const INDEX_FILENAME: &str = "index.csv";
@@ -56,18 +72,24 @@ where
 	) -> Result<Vec<MI>> {
 		reader
 			.deserialize::<MI>()
-			.filter_map(|res| match res.map_err(LoaderError::from) {
-				Err(err) => Some(Err(err)),
-				Ok(mut entry) => filters
-					.iter()
-					.all(|filter| filter(&entry))
-					.then(|| entry.resolve_paths(dataset_root).map(|()| entry)),
+			.filter_map(|res| {
+				match res.map_err(LoaderError::from) {
+					Err(err) => Some(Err(err)),
+					Ok(mut entry) => {
+						filters.iter().all(|filter| filter(&entry)).then(|| {
+							entry.resolve_paths(dataset_root).map(|()| entry)
+						})
+					},
+				}
 			})
 			.collect()
 	}
 
 	/// Create the chain of dataset transformations over the storage dataset.
-	fn build_dataset(items: Vec<MI>, mapper: M) -> DatasetSelect<M, MI, MO> {
+	fn build_dataset(
+		items: Vec<MI>,
+		mapper: M,
+	) -> DatasetSelect<M, MI, MO> {
 		let dataset = InMemDataset::new(items);
 		let dataset = MapperDataset::new(dataset, mapper);
 		SelectionDataset::new_shuffled(dataset, 42)
@@ -94,7 +116,9 @@ where
 		let reader = Self::create_reader(root)?;
 		let items = Self::load_dataset(reader, root, filters)?;
 		let dataset = Self::build_dataset(items, mapper);
-		Ok(Self { dataset })
+		Ok(Self {
+			dataset,
+		})
 	}
 }
 
@@ -104,7 +128,10 @@ where
 	MI: Send + Sync + Clone + LaserItem,
 	MO: Send + Sync + Clone,
 {
-	fn get(&self, index: usize) -> Option<MO> {
+	fn get(
+		&self,
+		index: usize,
+	) -> Option<MO> {
 		self.dataset.get(index)
 	}
 
@@ -146,7 +173,10 @@ where
 	MI: Send + Sync + Clone + LaserItem,
 	MO: Send + Sync + Clone + LaserItem,
 {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(
+		&self,
+		f: &mut fmt::Formatter<'_>,
+	) -> fmt::Result {
 		let items: Vec<_> = self
 			.dataset
 			.iter()
@@ -174,7 +204,10 @@ where
 	MI: Send + Sync + Clone + LaserItem,
 	MO: Send + Sync + Clone,
 {
-	fn get(&self, index: usize) -> Option<MO> {
+	fn get(
+		&self,
+		index: usize,
+	) -> Option<MO> {
 		self.dataset.get(index)
 	}
 
@@ -202,14 +235,22 @@ mod tests {
 		fmt::Display,
 		num::NonZeroU8,
 		path::PathBuf,
-		process::{ExitCode, Termination},
+		process::{
+			ExitCode,
+			Termination,
+		},
 	};
 
 	use serde::Deserialize;
 
 	use super::*;
 	use crate::item::{
-		BaseItem, ImagePath, ImageType, Intensity, LaserItem, LaserItemBase,
+		BaseItem,
+		ImagePath,
+		ImageType,
+		Intensity,
+		LaserItem,
+		LaserItemBase,
 		LaserItemType,
 	};
 
@@ -245,18 +286,20 @@ mod tests {
 		}
 
 		fn check_intensity(
-			intensity: Intensity<IntensityValType>,
+			intensity: Intensity<IntensityValType>
 		) -> Result<Intensity<IntensityValType>> {
 			match *intensity {
 				..=53 => Ok(intensity),
-				_ => Err(LoaderError::Intensity(
-					"No image with this intensity".into(),
-				)),
+				_ => {
+					Err(LoaderError::Intensity(
+						"No image with this intensity".into(),
+					))
+				},
 			}
 		}
 
 		fn parse_and_check_intensity(
-			name: &str,
+			name: &str
 		) -> Result<Intensity<IntensityValType>> {
 			let intensity = Self::parse_intensity(name)?;
 			Self::check_intensity(intensity)
@@ -284,7 +327,9 @@ mod tests {
 			let intensity =
 				Self::parse_and_check_intensity(&value.get_filename())?;
 			let base = BaseItem::new(value, intensity);
-			Ok(Self { base })
+			Ok(Self {
+				base,
+			})
 		}
 	}
 
@@ -297,7 +342,10 @@ mod tests {
 	struct DummyMapper;
 
 	impl Mapper<DummyMapperInput, DummyMapperInput> for DummyMapper {
-		fn map(&self, item: &DummyMapperInput) -> DummyMapperInput {
+		fn map(
+			&self,
+			item: &DummyMapperInput,
+		) -> DummyMapperInput {
 			item.clone()
 		}
 	}
@@ -315,7 +363,10 @@ mod tests {
 	}
 
 	impl Display for DummyDatasetSplit {
-		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		fn fmt(
+			&self,
+			f: &mut std::fmt::Formatter<'_>,
+		) -> std::fmt::Result {
 			let items: Vec<_> = self
 				.dataset
 				.iter()
@@ -336,7 +387,10 @@ mod tests {
 	struct LoadImage;
 
 	impl Mapper<DummyMapperInput, LoadedItem> for LoadImage {
-		fn map(&self, item: &DummyMapperInput) -> LoadedItem {
+		fn map(
+			&self,
+			item: &DummyMapperInput,
+		) -> LoadedItem {
 			LoadedItem {
 				image: item.load().unwrap(),
 				intensity: item.get_intensity(),
@@ -394,9 +448,11 @@ mod tests {
 		let dataset = LaserDataset::try_new(
 			DummyMapper,
 			PathBuf::from(DATASET_PATH),
-			&[Box::new(|item| match *item.get_intensity() {
-				0..10 => false,
-				_ => true,
+			&[Box::new(|item| {
+				match *item.get_intensity() {
+					0..10 => false,
+					_ => true,
+				}
 			})],
 		)
 		.inspect(|ds| println!("{}", ds));

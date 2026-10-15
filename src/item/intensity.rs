@@ -1,7 +1,16 @@
 use std::{
-	borrow::{Borrow, BorrowMut},
-	fmt::{Debug, Display},
-	ops::{Deref, DerefMut},
+	borrow::{
+		Borrow,
+		BorrowMut,
+	},
+	fmt::{
+		Debug,
+		Display,
+	},
+	ops::{
+		Deref,
+		DerefMut,
+	},
 	str::FromStr,
 };
 
@@ -51,7 +60,10 @@ impl<T> Display for Intensity<T>
 where
 	T: NumericLike,
 {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(
+		&self,
+		f: &mut std::fmt::Formatter<'_>,
+	) -> std::fmt::Result {
 		write!(f, "{}", self.inner)
 	}
 }
@@ -61,7 +73,9 @@ where
 	T: NumericLike,
 {
 	fn from(value: T) -> Self {
-		Self { inner: value }
+		Self {
+			inner: value,
+		}
 	}
 }
 
@@ -132,7 +146,11 @@ where
 	type Err = T::Err;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		T::from_str(s).map(|inner| Self { inner })
+		T::from_str(s).map(|inner| {
+			Self {
+				inner,
+			}
+		})
 	}
 }
 

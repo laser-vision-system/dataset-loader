@@ -1,11 +1,22 @@
-use std::{fmt::Display, path::Path};
+use std::{
+	fmt::Display,
+	path::Path,
+};
 
 use burn::data::dataset::transform::Mapper;
 
 use crate::{
 	Result,
-	dataset::{FilterFn, LaserDataset},
-	item::{BaseItem, LaserItem as _, LaserItemBase, LaserItemType},
+	dataset::{
+		FilterFn,
+		LaserDataset,
+	},
+	item::{
+		BaseItem,
+		LaserItem as _,
+		LaserItemBase,
+		LaserItemType,
+	},
 };
 
 pub type IntensityValType = f32;
@@ -80,7 +91,10 @@ impl LaserItemBase for InLabSingleLaserItem {
 }
 
 impl Display for InLabSingleLaserItem {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(
+		&self,
+		f: &mut std::fmt::Formatter<'_>,
+	) -> std::fmt::Result {
 		write!(
 			f,
 			"{} ({}, {}, {}): '{}'",

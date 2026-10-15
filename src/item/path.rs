@@ -1,10 +1,19 @@
 use std::{
-	borrow::{Borrow, Cow},
+	borrow::{
+		Borrow,
+		Cow,
+	},
 	fmt,
-	path::{Path, PathBuf},
+	path::{
+		Path,
+		PathBuf,
+	},
 };
 
-use crate::error::{LoaderError, Result};
+use crate::error::{
+	LoaderError,
+	Result,
+};
 
 /// A deconstructed type for an item's path.
 ///
@@ -17,7 +26,10 @@ pub struct ImagePath {
 
 #[expect(clippy::expect_used, reason = "Usage is pre-validated")]
 impl ImagePath {
-	pub fn canonicalise_with(&mut self, root: &Path) -> Result<()> {
+	pub fn canonicalise_with(
+		&mut self,
+		root: &Path,
+	) -> Result<()> {
 		let absolute = root.join(&self.inner);
 		self.inner = absolute.canonicalize().map_err(|why| {
 			LoaderError::Path(format!(
@@ -69,12 +81,17 @@ impl TryFrom<PathBuf> for ImagePath {
 			path.display()
 		)))?;
 
-		Ok(Self { inner: path })
+		Ok(Self {
+			inner: path,
+		})
 	}
 }
 
 impl fmt::Display for ImagePath {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(
+		&self,
+		f: &mut fmt::Formatter<'_>,
+	) -> fmt::Result {
 		write!(f, "{}", self.inner.display())
 	}
 }
@@ -104,7 +121,10 @@ impl Borrow<PathBuf> for ImagePath {
 
 #[cfg(test)]
 mod tests {
-	use std::process::{ExitCode, Termination};
+	use std::process::{
+		ExitCode,
+		Termination,
+	};
 
 	use super::*;
 

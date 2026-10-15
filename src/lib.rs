@@ -21,5 +21,13 @@ pub mod item;
 pub mod sources;
 pub mod splitting;
 
-pub use error::{LoaderError, Result};
-pub use splitting::{Split, SplitOutput, SplitType, Splitable};
+pub use error::{
+	LoaderError,
+	Result,
+};
+pub use splitting::{
+	Split,
+	SplitOutput,
+	SplitType,
+	Splitable,
+};

@@ -1,11 +1,22 @@
-use std::{fmt::Display, path::Path};
+use std::{
+	fmt::Display,
+	path::Path,
+};
 
 use burn::data::dataset::transform::Mapper;
 
 use crate::{
-	dataset::{FilterFn, LaserDataset},
+	dataset::{
+		FilterFn,
+		LaserDataset,
+	},
 	error::Result,
-	item::{BaseItem, LaserItem as _, LaserItemBase, LaserItemType},
+	item::{
+		BaseItem,
+		LaserItem as _,
+		LaserItemBase,
+		LaserItemType,
+	},
 };
 
 pub type IntensityValType = u8;
@@ -37,7 +48,10 @@ impl LaserItemBase for Synthetic1Item {
 }
 
 impl Display for Synthetic1Item {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(
+		&self,
+		f: &mut std::fmt::Formatter<'_>,
+	) -> std::fmt::Result {
 		write!(f, "{}", self.get_intensity())
 	}
 }
@@ -61,7 +75,10 @@ where
 pub(crate) mod tests {
 	use std::{
 		path::PathBuf,
-		process::{ExitCode, Termination},
+		process::{
+			ExitCode,
+			Termination,
+		},
 	};
 
 	use super::*;
@@ -73,8 +90,15 @@ pub(crate) mod tests {
 	use crate::{
 		LoaderError,
 		item::{
-			ImagePath, ImageType, LaserItem, LaserItemTryFrom,
-			tests::{create_path, extract_parts_from_name, parse_intensity_as},
+			ImagePath,
+			ImageType,
+			LaserItem,
+			LaserItemTryFrom,
+			tests::{
+				create_path,
+				extract_parts_from_name,
+				parse_intensity_as,
+			},
 		},
 	};
 
@@ -100,7 +124,9 @@ pub(crate) mod tests {
 			let parts = extract_parts_from_name(&name);
 			let intensity = parse_intensity_as(parts[0])?;
 			let base = BaseItem::new(value, intensity);
-			Ok(Self { base })
+			Ok(Self {
+				base,
+			})
 		}
 	}
 

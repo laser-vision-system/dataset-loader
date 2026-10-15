@@ -100,7 +100,11 @@ impl<T> SplitOutput<T>
 where
 	T: Split,
 {
-	pub fn new(train: T, validate: Option<T>, test: Option<T>) -> Self {
+	pub fn new(
+		train: T,
+		validate: Option<T>,
+		test: Option<T>,
+	) -> Self {
 		Self {
 			train,
 			validate,

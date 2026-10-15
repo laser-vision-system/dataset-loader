@@ -1,6 +1,9 @@
 use std::{
 	fmt,
-	path::{Path, PathBuf},
+	path::{
+		Path,
+		PathBuf,
+	},
 };
 
 use serde::Deserialize;
@@ -9,10 +12,16 @@ pub mod intensity;
 pub mod path;
 
 pub use self::{
-	intensity::{Intensity, NumericLike},
+	intensity::{
+		Intensity,
+		NumericLike,
+	},
 	path::ImagePath,
 };
-use crate::{LoaderError, Result};
+use crate::{
+	LoaderError,
+	Result,
+};
 
 pub type ImageType = image::RgbImage;
 
@@ -45,7 +54,10 @@ pub trait LaserItemBase: LaserItemType {
 	/// Convert the relative path to an absolute path with the use of a root.
 	///
 	/// You very likely do not need to call this method.
-	fn resolve_paths(&mut self, root: &Path) -> Result<()> {
+	fn resolve_paths(
+		&mut self,
+		root: &Path,
+	) -> Result<()> {
 		self.get_base_item_mut().resolve_root(root)
 	}
 }
@@ -104,7 +116,9 @@ pub trait LaserItem: LaserItemType {
 	}
 }
 
-impl<T> LaserItem for T where T: LaserItemBase {}
+impl<T> LaserItem for T where T: LaserItemBase
+{
+}
 
 /// Auto trait on [`LaserItemBase`] implementers that also implement
 /// [`TryFrom<ImagePath>`].
@@ -131,7 +145,10 @@ impl<T> fmt::Display for DatasetItemFormatter<'_, T>
 where
 	T: LaserItem,
 {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(
+		&self,
+		f: &mut fmt::Formatter<'_>,
+	) -> fmt::Result {
 		write!(
 			f,
 			"{}: '{}'",
@@ -164,7 +181,10 @@ impl<T> BaseItem<T>
 where
 	T: NumericLike,
 {
-	fn resolve_root(&mut self, root: &Path) -> Result<()> {
+	fn resolve_root(
+		&mut self,
+		root: &Path,
+	) -> Result<()> {
 		self.image_path.canonicalise_with(root)
 	}
 
@@ -186,7 +206,10 @@ impl<T> fmt::Display for BaseItem<T>
 where
 	T: NumericLike,
 {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(
+		&self,
+		f: &mut fmt::Formatter<'_>,
+	) -> fmt::Result {
 		write!(f, "{}: '{}'", self.intensity, self.image_path)
 	}
 }
@@ -195,18 +218,33 @@ where
 pub(crate) mod tests {
 	use std::{
 		path::PathBuf,
-		process::{ExitCode, Termination},
+		process::{
+			ExitCode,
+			Termination,
+		},
 		str::FromStr,
 	};
 
-	use super::{BaseItem, ImagePath, ImageType, Intensity, NumericLike};
-	use crate::{LoaderError, Result};
+	use super::{
+		BaseItem,
+		ImagePath,
+		ImageType,
+		Intensity,
+		NumericLike,
+	};
+	use crate::{
+		LoaderError,
+		Result,
+	};
 
 	impl<T> BaseItem<T>
 	where
 		T: NumericLike,
 	{
-		pub fn new(image_path: ImagePath, intensity: Intensity<T>) -> Self {
+		pub fn new(
+			image_path: ImagePath,
+			intensity: Intensity<T>,
+		) -> Self {
 			Self {
 				image_path,
 				position: None,
@@ -230,7 +268,10 @@ pub(crate) mod tests {
 		}
 	}
 
-	pub(crate) fn create_path(base: &str, name: &str) -> PathBuf {
+	pub(crate) fn create_path(
+		base: &str,
+		name: &str,
+	) -> PathBuf {
 		let mut path = PathBuf::from(base);
 		path.push(name);
 		path
