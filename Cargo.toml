@@ -50,7 +50,7 @@ implicit_return = "allow" # You are encouraged to omit `return`.
 inline_modules = "allow" # Currently complains about inline test modules.
 iter_over_hash_type = "allow" # We do not care about order.
 let_underscore_untyped = "allow" # Overlaps with `let_underscore_must_use`, little other value added.
-missing_docs_in_private_items = "allow" # TODO: Upgrade in the future.
+missing_docs_in_private_items = "allow" # This includes private fields; it would be overkill.
 missing_inline_in_public_items = "allow" # TODO: Maybe upgrade in the future for performance.
 module_name_repetitions = "allow" # Doesn't seem to help, often forces dumb renaming.
 multiple_inherent_impl = "allow" # This is fine in a single file, but discouraged across different files.
@@ -145,7 +145,7 @@ unneeded_field_pattern = "deny" # Enforce a justification.
 unreachable = "deny" # Enforce a justification.
 unused_result_ok = "deny" # Prevents silencing potential errors.
 unwrap_in_result = "deny" # Enforce a justification.
-unwrap_used = "deny" # Enforce a justification. #TODO: Upgrade in the future.
+unwrap_used = "deny" # Enforce a justification. Not forbidden to avoid issues with external macros.
 verbose_file_reads = "deny" # Inferior to `fs::read`.
 
 # Forbid
