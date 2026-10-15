@@ -6,16 +6,14 @@ use std::{
 	},
 };
 
+use burn::tensor::Element;
 use serde::Deserialize;
 
 pub mod intensity;
 pub mod path;
 
 pub use self::{
-	intensity::{
-		Intensity,
-		NumericLike,
-	},
+	intensity::Intensity,
 	path::ImagePath,
 };
 use crate::{
@@ -28,7 +26,7 @@ pub type ImageType = image::RgbImage;
 /// A trait for a laser dataset item that defines the type the intensity is
 /// stored as.
 pub trait LaserItemType {
-	type IntensityType: NumericLike;
+	type IntensityType: Element;
 
 	/// Get the base item type.
 	///
@@ -176,7 +174,7 @@ where
 #[derive(Clone, Debug, Deserialize)]
 pub struct BaseItem<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	#[serde(rename = "relative_path")]
 	image_path: ImagePath,
@@ -187,7 +185,7 @@ where
 
 impl<T> BaseItem<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	/// Attach the root to the relative item path.
 	///
@@ -217,7 +215,7 @@ where
 
 impl<T> fmt::Display for BaseItem<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	fn fmt(
 		&self,
@@ -240,10 +238,10 @@ pub(crate) mod tests {
 
 	use super::{
 		BaseItem,
+		Element,
 		ImagePath,
 		ImageType,
 		Intensity,
-		NumericLike,
 	};
 	use crate::{
 		LoaderError,
@@ -252,7 +250,7 @@ pub(crate) mod tests {
 
 	impl<T> BaseItem<T>
 	where
-		T: NumericLike,
+		T: Element,
 	{
 		pub fn new(
 			image_path: ImagePath,
@@ -302,7 +300,7 @@ pub(crate) mod tests {
 	/// Parse a string into an intensity.
 	pub(crate) fn parse_intensity_as<T>(input: &str) -> Result<Intensity<T>>
 	where
-		T: NumericLike,
+		T: Element + FromStr,
 		<T as FromStr>::Err: std::fmt::Display,
 	{
 		let intensity: Intensity<T> = input.parse().map_err(|why| {

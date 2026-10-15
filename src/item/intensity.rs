@@ -3,10 +3,7 @@ use std::{
 		Borrow,
 		BorrowMut,
 	},
-	fmt::{
-		Debug,
-		Display,
-	},
+	fmt::Display,
 	ops::{
 		Deref,
 		DerefMut,
@@ -14,51 +11,22 @@ use std::{
 	str::FromStr,
 };
 
+use burn::tensor::Element;
 use serde::Deserialize;
-
-/// A marker trait for types that can be used in [`Intensity`].
-pub trait NumericLike:
-	Send
-	+ Sync
-	+ Clone
-	+ Copy
-	+ Debug
-	+ Default
-	+ Display
-	+ PartialOrd
-	+ PartialEq
-	+ FromStr
-{
-}
-
-/// Blanket implementation over all valid types.
-impl<T> NumericLike for T where
-	T: Send
-		+ Sync
-		+ Clone
-		+ Copy
-		+ Debug
-		+ Default
-		+ Display
-		+ PartialOrd
-		+ PartialEq
-		+ FromStr
-{
-}
 
 /// Razor thin wrapper for the intensity value.
 #[derive(Clone, Copy, Debug, Default, PartialOrd, PartialEq, Deserialize)]
 #[serde(transparent)]
 pub struct Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	inner: T,
 }
 
 impl<T> Display for Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	fn fmt(
 		&self,
@@ -70,7 +38,7 @@ where
 
 impl<T> From<T> for Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	fn from(value: T) -> Self {
 		Self {
@@ -81,7 +49,7 @@ where
 
 impl<T> Deref for Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	type Target = T;
 
@@ -92,7 +60,7 @@ where
 
 impl<T> DerefMut for Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.inner
@@ -101,7 +69,7 @@ where
 
 impl<T, O> AsRef<O> for Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 	O: ?Sized,
 	<Intensity<T> as Deref>::Target: AsRef<O>,
 {
@@ -112,7 +80,7 @@ where
 
 impl<T, O> AsMut<O> for Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 	O: ?Sized,
 	<Intensity<T> as Deref>::Target: AsMut<O>,
 {
@@ -123,7 +91,7 @@ where
 
 impl<T> Borrow<T> for Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	fn borrow(&self) -> &T {
 		&self.inner
@@ -132,7 +100,7 @@ where
 
 impl<T> BorrowMut<T> for Intensity<T>
 where
-	T: NumericLike,
+	T: Element,
 {
 	fn borrow_mut(&mut self) -> &mut T {
 		&mut self.inner
@@ -141,7 +109,7 @@ where
 
 impl<T> FromStr for Intensity<T>
 where
-	T: NumericLike,
+	T: Element + FromStr,
 {
 	type Err = T::Err;
 
