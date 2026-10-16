@@ -1,3 +1,5 @@
+//! Random horizontal and vertical flips with validated probabilities.
+
 use image::imageops::{
 	flip_horizontal_in_place,
 	flip_vertical_in_place,
@@ -8,37 +10,102 @@ use rand::{
 };
 
 use super::{
+	AugmentationError,
 	ImageStep,
 	ImageType,
 };
 
-#[derive(Clone, Copy, Debug)]
-struct FlipProbability(f64);
+/// A finite flip probability in the inclusive range `0.0..=1.0`.
+///
+/// # Examples
+///
+/// ```
+/// # use dataset_loader::augmentation::{
+/// #     AugmentationError,
+/// #     flip::FlipProbability,
+/// # };
+/// #
+/// const PROBABILITY: FlipProbability = match FlipProbability::new(0.5) {
+/// 	Ok(probability) => probability,
+/// 	Err(_) => panic!("invalid constant probability"),
+/// };
+///
+/// assert_eq!(PROBABILITY.value(), 0.5);
+/// ```
+///
+/// A bad value in the same `const match` fails compilation:
+///
+/// ```compile_fail
+/// # use dataset_loader::augmentation::flip::FlipProbability;
+/// #
+/// // This will raise a compile-time error.
+/// const INVALID: FlipProbability = match FlipProbability::new(1.5) {
+///     Ok(probability) => probability,
+///     Err(_) => panic!("invalid constant probability"),
+/// };
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FlipProbability(f64);
 
 impl FlipProbability {
-	fn new(value: f32) -> Option<Self> {
-		(value.is_finite() && (0.0..=1.0).contains(&value))
-			.then_some(Self(f64::from(value)))
+	/// Creates a validated flip probability.
+	///
+	/// Returns [`AugmentationError::InvalidFlipProbability`] if `value` is
+	/// non-finite or outside `0.0..=1.0`. This function is `const`.
+	///
+	/// # Errors
+	///
+	/// Returns [`AugmentationError::InvalidFlipProbability`] when the value is
+	/// not finite or outside the inclusive range `0.0..=1.0`.
+	pub const fn new(value: f64) -> Result<Self, AugmentationError> {
+		if value.is_finite() && value >= 0.0 && value <= 1.0 {
+			Ok(Self(value))
+		} else {
+			Err(AugmentationError::InvalidFlipProbability)
+		}
+	}
+
+	/// Returns the probability as a floating-point value.
+	pub const fn value(self) -> f64 {
+		self.0
 	}
 }
 
-/// Randomly mirrors an image left-to-right, in place.
+/// Randomly mirrors an image left-to-right.
+///
+/// Its default probability is 50%.
+///
+/// # Examples
+///
+/// ```
+/// # use dataset_loader::augmentation::flip::{
+/// # 	FlipProbability,
+/// # 	RandomHorizontalFlip,
+/// # };
+/// #
+/// let probability =
+/// 	FlipProbability::new(0.75).expect("the probability is in range");
+/// let _flip = RandomHorizontalFlip::new(probability);
+/// ```
 #[derive(Clone, Debug)]
 pub struct RandomHorizontalFlip {
 	probability: FlipProbability,
 }
 
 impl RandomHorizontalFlip {
-	/// Creates a horizontal flip with the given probability in `0.0..=1.0`.
-	pub fn new(probability: f32) -> Option<Self> {
-		Some(Self {
-			probability: FlipProbability::new(probability)?,
-		})
+	/// Creates a horizontal flip with probability in `0.0..=1.0`.
+	///
+	/// The probability must first be validated with [`FlipProbability::new`].
+	/// This constructor is infallible and `const`.
+	pub const fn new(probability: FlipProbability) -> Self {
+		Self {
+			probability,
+		}
 	}
 }
 
 impl Default for RandomHorizontalFlip {
-	/// A 50% chance.
+	/// Returns a transform with a 50% flip probability.
 	fn default() -> Self {
 		Self {
 			probability: FlipProbability(0.5),
@@ -59,23 +126,41 @@ impl ImageStep for RandomHorizontalFlip {
 	}
 }
 
-/// Randomly mirrors an image top-to-bottom, in place.
+/// Randomly mirrors an image top-to-bottom.
+///
+/// Its default probability is 50%.
+///
+/// # Examples
+///
+/// ```
+/// # use dataset_loader::augmentation::flip::{
+/// # 	FlipProbability,
+/// # 	RandomVerticalFlip,
+/// # };
+/// #
+/// let probability =
+/// 	FlipProbability::new(0.25).expect("the probability is in range");
+/// let _flip = RandomVerticalFlip::new(probability);
+/// ```
 #[derive(Clone, Debug)]
 pub struct RandomVerticalFlip {
 	probability: FlipProbability,
 }
 
 impl RandomVerticalFlip {
-	/// Creates a vertical flip with the given probability in `0.0..=1.0`.
-	pub fn new(probability: f32) -> Option<Self> {
-		Some(Self {
-			probability: FlipProbability::new(probability)?,
-		})
+	/// Creates a vertical flip with probability in `0.0..=1.0`.
+	///
+	/// The probability must first be validated with [`FlipProbability::new`].
+	/// This constructor is infallible and `const`.
+	pub const fn new(probability: FlipProbability) -> Self {
+		Self {
+			probability,
+		}
 	}
 }
 
 impl Default for RandomVerticalFlip {
-	/// A 50% chance.
+	/// Returns a transform with a 50% flip probability.
 	fn default() -> Self {
 		Self {
 			probability: FlipProbability(0.5),
@@ -109,7 +194,8 @@ mod tests {
 			Rgb([u8::from(x == 1), u8::from(y == 1), 0])
 		});
 		let mut rng = StdRng::seed_from_u64(42);
-		let step = RandomHorizontalFlip::new(1.0).unwrap_or_default();
+		let prob = FlipProbability::new(1.0).expect("probability one is valid");
+		let step = RandomHorizontalFlip::new(prob);
 
 		let image = step.apply(original, &mut rng);
 
@@ -124,7 +210,8 @@ mod tests {
 			Rgb([u8::from(x == 1), u8::from(y == 1), 0])
 		});
 		let mut rng = StdRng::seed_from_u64(42);
-		let step = RandomVerticalFlip::new(1.0).unwrap_or_default();
+		let prob = FlipProbability::new(1.0).expect("probability one is valid");
+		let step = RandomVerticalFlip::new(prob);
 
 		let image = step.apply(original, &mut rng);
 
@@ -139,17 +226,29 @@ mod tests {
 			Rgb([u8::from(x == 1), u8::from(y == 1), 0])
 		});
 		let mut rng = StdRng::seed_from_u64(42);
-		let image = RandomHorizontalFlip::new(0.0)
-			.unwrap_or_default()
-			.apply(original.clone(), &mut rng);
+		let prob =
+			FlipProbability::new(0.0).expect("probability zero is valid");
+		let image =
+			RandomHorizontalFlip::new(prob).apply(original.clone(), &mut rng);
 		assert_eq!(image, original);
 	}
 
 	#[test]
 	fn flip_probability_rejects_out_of_range_and_non_finite_values() {
-		for probability in [-0.1, 1.1, f32::INFINITY, f32::NAN] {
-			assert!(RandomHorizontalFlip::new(probability).is_none());
-			assert!(RandomVerticalFlip::new(probability).is_none());
+		for probability in [-0.1, 1.1, f64::INFINITY, f64::NAN] {
+			assert!(matches!(
+				FlipProbability::new(probability),
+				Err(AugmentationError::InvalidFlipProbability)
+			));
 		}
+	}
+
+	#[test]
+	fn probability_validation_is_const_evaluable() {
+		const VALID: FlipProbability = match FlipProbability::new(0.5) {
+			Ok(probability) => probability,
+			Err(_) => panic!("invalid test probability"),
+		};
+		assert_eq!(VALID.value(), 0.5);
 	}
 }
