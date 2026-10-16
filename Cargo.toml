@@ -14,6 +14,7 @@ image = { version = "0.25", default-features = false, features = [
 	"rayon",
 	"png",
 ] }
+rand = "0.10"
 serde = { version = "1", default-features = false, features = [
 	"derive",
 ]}
