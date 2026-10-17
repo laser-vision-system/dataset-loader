@@ -79,6 +79,7 @@ where
 #[cfg(test)]
 pub(crate) mod tests {
 	use std::{
+		assert_matches,
 		path::PathBuf,
 		process::{
 			ExitCode,
@@ -98,15 +99,15 @@ pub(crate) mod tests {
 		LoaderError,
 		item::{
 			ImagePath,
-			LaserItemTryFrom as _,
 			tests::{
 				create_path,
-				extract_parts_from_name,
-				parse_intensity_as,
+				create_temporary_image,
 			},
 		},
 	};
 
+	// Production loading uses the CSV index; these filename conversions support
+	// tests only.
 	impl TryFrom<ImagePath> for Synthetic1Item {
 		type Error = LoaderError;
 
@@ -125,13 +126,35 @@ pub(crate) mod tests {
 		/// - If the path leads to an image claiming to be above an intensity of
 		///   53
 		fn try_from(value: ImagePath) -> Result<Self> {
-			let name = value.get_filename();
-			let parts = extract_parts_from_name(&name);
-			let intensity = parse_intensity_as(parts[0])?;
-			let base = BaseItem::new(value, intensity);
+			let filename = value.get_filename();
+			let (_, intensity) =
+				filename.rsplit_once('_').ok_or_else(|| {
+					LoaderError::Path(
+						"filename must contain an underscore (_)".into(),
+					)
+				})?;
+			let intensity =
+				intensity.parse::<IntensityValType>().map_err(|why| {
+					LoaderError::Intensity(format!(
+						"invalid filename intensity: {why}"
+					))
+				})?;
+			if intensity > 53 {
+				return Err(LoaderError::Intensity(
+					"intensity must be in 0..=53".into(),
+				));
+			}
 			Ok(Self {
-				base,
+				base: BaseItem::new(value, intensity.into()),
 			})
+		}
+	}
+
+	impl TryFrom<PathBuf> for Synthetic1Item {
+		type Error = LoaderError;
+
+		fn try_from(value: PathBuf) -> Result<Self> {
+			Self::try_from(ImagePath::try_from(value)?)
 		}
 	}
 
@@ -160,16 +183,21 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn try_from_image_path_correct_min() -> Result<Synthetic1Item> {
+	fn try_from_pathbuf_correct_min() -> Result<Synthetic1Item> {
 		let path = create_path(ITEM_PATH, "render_0000.png");
-		let image_path = ImagePath::try_from(path)?;
-		Synthetic1Item::try_from(image_path)
+		Synthetic1Item::try_from(path)
+	}
+
+	#[test]
+	fn try_from_pathbuf_correct_max() -> Result<Synthetic1Item> {
+		let path = create_path(ITEM_PATH, "render_0053.png");
+		Synthetic1Item::try_from(path)
 	}
 
 	#[test]
 	fn display_includes_intensity_without_position_or_image_path() {
 		let item =
-			try_from_image_path_correct_min().expect("item should be created");
+			try_from_pathbuf_correct_min().expect("item should be created");
 		let output = item.to_string();
 
 		assert!(output.contains('0'));
@@ -178,50 +206,32 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn try_from_image_path_correct_max() -> Result<Synthetic1Item> {
-		let path = create_path(ITEM_PATH, "render_0053.png");
-		let image_path = ImagePath::try_from(path)?;
-		Synthetic1Item::try_from(image_path)
-	}
-
-	// Cannot `try_from_image_path_incorrect_intensity` because it is impossible
-	// to build an incorrect image_path.
-
-	#[test]
-	fn try_from_pathbuf_correct_min() -> Result<Synthetic1Item> {
-		let path = create_path(ITEM_PATH, "render_0000.png");
-		Synthetic1Item::try_from_pathbuf(path)
-	}
-
-	#[test]
-	fn try_from_pathbuf_correct_max() -> Result<Synthetic1Item> {
-		let path = create_path(ITEM_PATH, "render_0053.png");
-		Synthetic1Item::try_from_pathbuf(path)
+	fn try_from_rejects_intensity_above_source_limit() {
+		let path = PathBuf::from("images/render_0054.png");
+		assert_matches!(
+			Synthetic1Item::try_from(path),
+			Err(crate::LoaderError::Intensity(_))
+		);
 	}
 
 	#[test]
 	fn try_from_pathbuf_incorrect_path_entirely() {
 		let image_path = PathBuf::from("completely random path");
-		let res = Synthetic1Item::try_from_pathbuf(image_path);
+		let res = Synthetic1Item::try_from(image_path);
 		res.unwrap_err();
 	}
 
 	#[test]
 	fn try_from_pathbuf_incorrect_file() {
 		let image_path = crate::item::tests::create_path(ITEM_PATH, "");
-		let res = Synthetic1Item::try_from_pathbuf(image_path);
+		let res = Synthetic1Item::try_from(image_path);
 		res.unwrap_err();
 	}
 
 	#[test]
-	fn load_image_after_image_path() -> Result<SuccessfulImage> {
-		let item = try_from_image_path_correct_max()?;
-		item.load().map(Into::into)
-	}
-
-	#[test]
 	fn load_image_after_pathbuf() -> Result<SuccessfulImage> {
-		let item = try_from_pathbuf_correct_max()?;
+		let image = create_temporary_image("render_0053.png");
+		let item = Synthetic1Item::try_from(image.path().clone())?;
 		item.load().map(Into::into)
 	}
 }
