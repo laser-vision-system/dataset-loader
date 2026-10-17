@@ -86,6 +86,8 @@ pub(crate) mod tests {
 		},
 	};
 
+	use image::DynamicImage;
+
 	use super::*;
 	const ITEM_PATH: &str = const_str::concat!(
 		super::super::RELATIVE_DATASETS_PATH,
@@ -96,7 +98,6 @@ pub(crate) mod tests {
 		LoaderError,
 		item::{
 			ImagePath,
-			ImageType,
 			LaserItemTryFrom as _,
 			tests::{
 				create_path,
@@ -144,10 +145,10 @@ pub(crate) mod tests {
 		dead_code,
 		reason = "Used to allow tests to return a type for chaining"
 	)]
-	struct SuccessfulImage(ImageType);
+	struct SuccessfulImage(DynamicImage);
 
-	impl From<ImageType> for SuccessfulImage {
-		fn from(value: ImageType) -> Self {
+	impl From<DynamicImage> for SuccessfulImage {
+		fn from(value: DynamicImage) -> Self {
 			Self(value)
 		}
 	}

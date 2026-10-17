@@ -1,10 +1,17 @@
 //! Zoom-in and zoom-out transforms with validated scale ranges.
 
-use image::imageops::{
-	FilterType,
-	crop,
-	overlay,
-	resize,
+use image::{
+	DynamicImage,
+	GenericImageView,
+	ImageBuffer,
+	Pixel,
+	Primitive as _,
+	imageops::{
+		FilterType,
+		crop,
+		overlay,
+		resize,
+	},
 };
 use rand::{
 	RngExt as _,
@@ -13,8 +20,8 @@ use rand::{
 
 use super::{
 	AugmentationError,
+	GenericImageBuffer,
 	ImageStep,
-	ImageType,
 };
 
 /// Determines how a resized image is fitted back onto its original canvas.
@@ -175,11 +182,15 @@ impl ZoomIn {
 }
 
 impl ImageStep for ZoomIn {
-	fn apply(
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageType {
+	) -> GenericImageBuffer<P>
+	where
+		P: Pixel + 'static,
+		GenericImageBuffer<P>: Into<DynamicImage>,
+	{
 		resample_to_canvas(
 			image,
 			self.factors.sample(rng),
@@ -221,11 +232,15 @@ impl ZoomOut {
 }
 
 impl ImageStep for ZoomOut {
-	fn apply(
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageType {
+	) -> GenericImageBuffer<P>
+	where
+		P: Pixel + 'static,
+		GenericImageBuffer<P>: Into<DynamicImage>,
+	{
 		resample_to_canvas(
 			image,
 			1.0 / self.divisors.sample(rng),
@@ -242,16 +257,22 @@ impl ImageStep for ZoomOut {
 	clippy::integer_division,
 	reason = "Scale factors map dimensions to pixels; fitting is centered using floor division"
 )]
-fn resample_to_canvas(
-	image: ImageType,
+fn resample_to_canvas<I, P>(
+	image: I,
 	scale: f32,
 	fit: CanvasFit,
-) -> ImageType {
+) -> GenericImageBuffer<P>
+where
+	I: GenericImageView<Pixel = P>
+		+ Into<DynamicImage>
+		+ Into<GenericImageBuffer<P>>,
+	P: Pixel + 'static,
+{
 	let (width, height) = image.dimensions();
 	let scaled_width = ((width as f32 * scale).round() as u32).max(1);
 	let scaled_height = ((height as f32 * scale).round() as u32).max(1);
 	if scaled_width == width && scaled_height == height {
-		return image;
+		return image.into();
 	}
 
 	let mut resized =
@@ -263,7 +284,12 @@ fn resample_to_canvas(
 			crop(&mut resized, left, top, width, height).to_image()
 		},
 		CanvasFit::BlackPad => {
-			let mut canvas = ImageType::new(width, height);
+			let channels = vec![
+				P::Subpixel::DEFAULT_MIN_VALUE;
+				usize::from(P::CHANNEL_COUNT)
+			];
+			let black = *P::from_slice(&channels);
+			let mut canvas = ImageBuffer::from_pixel(width, height, black);
 			let left = width.saturating_sub(scaled_width) / 2;
 			let top = height.saturating_sub(scaled_height) / 2;
 			overlay(&mut canvas, &resized, i64::from(left), i64::from(top));
@@ -274,7 +300,10 @@ fn resample_to_canvas(
 
 #[cfg(test)]
 mod tests {
-	use image::Rgb;
+	use image::{
+		Rgb,
+		RgbImage,
+	};
 	use rand::SeedableRng as _;
 
 	use super::*;
@@ -282,8 +311,8 @@ mod tests {
 	fn gradient_image(
 		width: u32,
 		height: u32,
-	) -> ImageType {
-		ImageType::from_fn(width, height, |x, y| {
+	) -> RgbImage {
+		RgbImage::from_fn(width, height, |x, y| {
 			Rgb([
 				u8::try_from(x % 256).unwrap_or_default(),
 				u8::try_from(y % 256).unwrap_or_default(),
@@ -324,7 +353,7 @@ mod tests {
 
 	#[test]
 	fn zoom_out_centers_resized_content() {
-		let image = ImageType::from_pixel(8, 8, Rgb([12, 34, 56]));
+		let image = RgbImage::from_pixel(8, 8, Rgb([12, 34, 56]));
 		let mut rng = StdRng::seed_from_u64(42);
 		let divisors = ZoomOutDivisors::new(2.0, 2.0)
 			.expect("the zoom-out divisor range is valid");
@@ -334,7 +363,7 @@ mod tests {
 
 	#[test]
 	fn zoom_out_fills_padding_with_black() {
-		let image = ImageType::from_pixel(8, 8, Rgb([12, 34, 56]));
+		let image = RgbImage::from_pixel(8, 8, Rgb([12, 34, 56]));
 		let mut rng = StdRng::seed_from_u64(42);
 		let divisors = ZoomOutDivisors::new(2.0, 2.0)
 			.expect("the zoom-out divisor range is valid");

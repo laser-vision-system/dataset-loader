@@ -1,12 +1,14 @@
-use image::imageops::filter3x3;
+use image::{
+	DynamicImage,
+	Pixel,
+	imageops::filter3x3,
+};
 use rand::rngs::StdRng;
 
-use super::{
-	super::{
-		AugmentationError,
-		ImageStep,
-	},
-	ImageType,
+use super::super::{
+	AugmentationError,
+	GenericImageBuffer,
+	ImageStep,
 };
 
 /// A validated 3-by-3 kernel containing only finite weights.
@@ -119,12 +121,17 @@ impl Default for BoxFilter {
 }
 
 impl ImageStep for BoxFilter {
-	fn apply(
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: GenericImageBuffer<P>,
 		_rng: &mut StdRng,
-	) -> ImageType {
-		let (width, height) = image.dimensions();
+	) -> GenericImageBuffer<P>
+	where
+		P: Pixel + 'static,
+		GenericImageBuffer<P>: Into<DynamicImage>,
+	{
+		let width = image.width();
+		let height = image.height();
 		if width < 3 || height < 3 {
 			return image;
 		}
@@ -134,13 +141,16 @@ impl ImageStep for BoxFilter {
 
 #[cfg(test)]
 mod tests {
-	use image::Rgb;
+	use image::{
+		Rgb,
+		RgbImage,
+	};
 	use rand::SeedableRng as _;
 
 	use super::*;
 
-	fn impulse_image() -> ImageType {
-		ImageType::from_fn(5, 5, |x, y| {
+	fn impulse_image() -> RgbImage {
+		RgbImage::from_fn(5, 5, |x, y| {
 			if x == 2 && y == 2 {
 				Rgb([255, 255, 255])
 			} else {
@@ -204,7 +214,7 @@ mod tests {
 	#[test]
 	fn small_images_are_unchanged() {
 		for dimensions in [(0, 0), (1, 1), (2, 4), (4, 2)] {
-			let image = ImageType::from_pixel(
+			let image = RgbImage::from_pixel(
 				dimensions.0,
 				dimensions.1,
 				Rgb([10, 20, 30]),

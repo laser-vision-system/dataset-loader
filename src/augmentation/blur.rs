@@ -18,6 +18,10 @@ pub use gaussian::{
 	Gaussian,
 	RandomGaussian,
 };
+use image::{
+	DynamicImage,
+	Pixel,
+};
 use rand::{
 	RngExt as _,
 	rngs::StdRng,
@@ -25,7 +29,7 @@ use rand::{
 
 use super::{
 	AugmentationError,
-	ImageType,
+	GenericImageBuffer,
 };
 
 /// A validated finite, non-negative blur radius.
@@ -121,7 +125,7 @@ impl BlurSigmaRange {
 		}
 	}
 
-	/// Returns the exclusive minimum and maximum bounds.
+	/// Returns the lower-inclusive and upper-exclusive bounds.
 	pub const fn bounds(self) -> (f32, f32) {
 		(self.min, self.max)
 	}
@@ -136,11 +140,15 @@ impl BlurSigmaRange {
 }
 
 /// Applies a blur unless its validated radius is zero.
-fn apply_blur(
-	image: ImageType,
+fn apply_blur<P>(
+	image: GenericImageBuffer<P>,
 	sigma: BlurSigma,
-	blur: fn(&ImageType, f32) -> ImageType,
-) -> ImageType {
+	blur: fn(&GenericImageBuffer<P>, f32) -> GenericImageBuffer<P>,
+) -> GenericImageBuffer<P>
+where
+	P: Pixel,
+	GenericImageBuffer<P>: Into<DynamicImage>,
+{
 	if sigma.0 == 0.0 {
 		return image;
 	}

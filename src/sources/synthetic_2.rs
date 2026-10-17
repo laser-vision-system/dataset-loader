@@ -110,11 +110,12 @@ mod tests {
 		"synthetic_2/images/"
 	);
 
+	use image::DynamicImage;
+
 	use crate::{
 		LoaderError,
 		item::{
 			ImagePath,
-			ImageType,
 			LaserItemTryFrom as _,
 			tests::{
 				create_path,
@@ -169,10 +170,10 @@ mod tests {
 		dead_code,
 		reason = "Used to allow tests to return a type for chaining"
 	)]
-	struct SuccessfulImage(ImageType);
+	struct SuccessfulImage(DynamicImage);
 
-	impl From<ImageType> for SuccessfulImage {
-		fn from(value: ImageType) -> Self {
+	impl From<DynamicImage> for SuccessfulImage {
+		fn from(value: DynamicImage) -> Self {
 			Self(value)
 		}
 	}

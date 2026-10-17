@@ -1,11 +1,17 @@
-use image::imageops::fast_blur;
+use image::{
+	DynamicImage,
+	Pixel,
+	imageops::fast_blur,
+};
 use rand::rngs::StdRng;
 
 use super::{
-	super::ImageStep,
+	super::{
+		GenericImageBuffer,
+		ImageStep,
+	},
 	BlurSigma,
 	BlurSigmaRange,
-	ImageType,
 	apply_blur,
 };
 
@@ -42,11 +48,15 @@ impl GaussianFast {
 }
 
 impl ImageStep for GaussianFast {
-	fn apply(
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: GenericImageBuffer<P>,
 		_rng: &mut StdRng,
-	) -> ImageType {
+	) -> GenericImageBuffer<P>
+	where
+		P: Pixel + 'static,
+		GenericImageBuffer<P>: Into<DynamicImage>,
+	{
 		apply_blur(image, self.sigma, fast_blur)
 	}
 }
@@ -94,25 +104,32 @@ impl Default for RandomGaussianFast {
 }
 
 impl ImageStep for RandomGaussianFast {
-	fn apply(
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageType {
+	) -> GenericImageBuffer<P>
+	where
+		P: Pixel + 'static,
+		GenericImageBuffer<P>: Into<DynamicImage>,
+	{
 		apply_blur(image, self.sigma.sample(rng), fast_blur)
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use image::Rgb;
+	use image::{
+		Rgb,
+		RgbImage,
+	};
 	use rand::SeedableRng as _;
 
 	use super::*;
 	use crate::augmentation::AugmentationError;
 
-	fn impulse_image() -> ImageType {
-		ImageType::from_fn(5, 5, |x, y| {
+	fn impulse_image() -> RgbImage {
+		RgbImage::from_fn(5, 5, |x, y| {
 			if x == 2 && y == 2 {
 				Rgb([255, 255, 255])
 			} else {

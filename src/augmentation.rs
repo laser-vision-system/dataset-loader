@@ -63,13 +63,17 @@ pub mod flip;
 pub mod hue;
 pub mod zoom;
 
+use image::{
+	DynamicImage,
+	ImageBuffer,
+	Pixel,
+};
 use rand::rngs::StdRng;
-use thiserror::Error;
 
-use crate::item::ImageType;
+type GenericImageBuffer<P> = ImageBuffer<P, Vec<<P as Pixel>::Subpixel>>;
 
 /// A validation error returned when augmentation parameters are invalid.
-#[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, thiserror::Error, Eq, PartialEq)]
 pub enum AugmentationError {
 	/// Hue bounds are not in strictly increasing order.
 	#[error("hue range minimum must be less than its maximum")]
@@ -114,12 +118,15 @@ pub enum AugmentationError {
 /// assert_eq!(image.dimensions(), (1, 1));
 /// ```
 pub trait ImageStep: Clone + Send + Sync {
-	/// Transforms an owned RGB image and returns the result at runtime.
-	fn apply(
+	/// Transforms an owned image buffer and returns the result at runtime.
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageType;
+	) -> GenericImageBuffer<P>
+	where
+		P: Pixel + 'static,
+		GenericImageBuffer<P>: Into<DynamicImage>;
 
 	/// Appends a step to the augmentation pipeline for runtime execution.
 	///
@@ -192,11 +199,15 @@ where
 	F: ImageStep,
 	N: ImageStep,
 {
-	fn apply(
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageType {
+	) -> GenericImageBuffer<P>
+	where
+		P: Pixel + 'static,
+		GenericImageBuffer<P>: Into<DynamicImage>,
+	{
 		let image = self.first.apply(image, rng);
 		self.next.apply(image, rng)
 	}
@@ -222,18 +233,26 @@ where
 pub struct NoOp;
 
 impl ImageStep for NoOp {
-	fn apply(
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: GenericImageBuffer<P>,
 		_rng: &mut StdRng,
-	) -> ImageType {
+	) -> GenericImageBuffer<P>
+	where
+		P: Pixel + 'static,
+		GenericImageBuffer<P>: Into<DynamicImage>,
+	{
 		image
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use image::Rgb;
+	use image::{
+		Primitive as _,
+		Rgb,
+		RgbImage,
+	};
 	use rand::{
 		RngExt as _,
 		SeedableRng as _,
@@ -242,33 +261,49 @@ mod tests {
 	use super::*;
 
 	#[derive(Clone)]
-	struct SetRed(u8);
+	struct SetFirstSubPixelValue(bool);
 
-	impl ImageStep for SetRed {
-		fn apply(
+	impl ImageStep for SetFirstSubPixelValue {
+		fn apply<P>(
 			&self,
-			mut image: ImageType,
+			mut image: GenericImageBuffer<P>,
 			_rng: &mut StdRng,
-		) -> ImageType {
+		) -> GenericImageBuffer<P>
+		where
+			P: Pixel + 'static,
+			GenericImageBuffer<P>: Into<DynamicImage>,
+		{
 			for pixel in image.pixels_mut() {
-				pixel.0[0] = self.0;
+				pixel.channels_mut()[0] = if self.0 {
+					P::Subpixel::DEFAULT_MAX_VALUE
+				} else {
+					P::Subpixel::DEFAULT_MIN_VALUE
+				};
 			}
 			image
 		}
 	}
 
 	#[derive(Clone)]
-	struct RandomRed;
+	struct RandomFirstSubPixelValue;
 
-	impl ImageStep for RandomRed {
-		fn apply(
+	impl ImageStep for RandomFirstSubPixelValue {
+		fn apply<P>(
 			&self,
-			mut image: ImageType,
+			mut image: GenericImageBuffer<P>,
 			rng: &mut StdRng,
-		) -> ImageType {
-			let red = rng.random_range(0..=u8::MAX);
+		) -> GenericImageBuffer<P>
+		where
+			P: Pixel + 'static,
+			GenericImageBuffer<P>: Into<DynamicImage>,
+		{
+			let is_high = rng.random_bool(0.5);
 			for pixel in image.pixels_mut() {
-				pixel.0[0] = red;
+				pixel.channels_mut()[0] = if is_high {
+					P::Subpixel::DEFAULT_MAX_VALUE
+				} else {
+					P::Subpixel::DEFAULT_MIN_VALUE
+				};
 			}
 			image
 		}
@@ -276,18 +311,19 @@ mod tests {
 
 	#[test]
 	fn sequence_applies_steps_in_order() {
-		let pipeline = SetRed(10).then(SetRed(20));
-		let image = ImageType::from_pixel(1, 1, Rgb([0, 0, 0]));
+		let pipeline =
+			SetFirstSubPixelValue(false).then(SetFirstSubPixelValue(true));
+		let image = RgbImage::from_pixel(1, 1, Rgb([0, 0, 0]));
 		let mut rng = StdRng::seed_from_u64(42);
 
 		let image = pipeline.apply(image, &mut rng);
 
-		assert_eq!(image.get_pixel(0, 0).0[0], 20);
+		assert_eq!(image.get_pixel(0, 0).0[0], 255);
 	}
 
 	#[test]
 	fn no_augmentation_preserves_image() {
-		let original = ImageType::from_pixel(1, 1, Rgb([1, 2, 3]));
+		let original = RgbImage::from_pixel(1, 1, Rgb([1, 2, 3]));
 		let mut rng = StdRng::seed_from_u64(42);
 
 		let image = NoOp.apply(original.clone(), &mut rng);
@@ -297,8 +333,8 @@ mod tests {
 
 	#[test]
 	fn random_steps_are_reproducible_from_seed() {
-		let pipeline = RandomRed;
-		let first_image = ImageType::from_pixel(1, 1, Rgb([0, 0, 0]));
+		let pipeline = RandomFirstSubPixelValue;
+		let first_image = RgbImage::from_pixel(1, 1, Rgb([0, 0, 0]));
 		let second_image = first_image.clone();
 		let mut first_rng = StdRng::seed_from_u64(42);
 		let mut second_rng = StdRng::seed_from_u64(42);
