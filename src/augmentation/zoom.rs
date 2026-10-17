@@ -44,7 +44,7 @@ enum CanvasFit {
 /// #     zoom::ZoomRange,
 /// # };
 /// #
-/// const FACTORS: ZoomRange = match ZoomRange::ordered(1.0, 3.0) {
+/// const FACTORS: ZoomRange = match ZoomRange::try_new(1.0, 3.0) {
 /// 	Ok(factors) => factors,
 /// 	Err(_) => panic!("invalid constant zoom-in range"),
 /// };
@@ -192,7 +192,8 @@ impl ZoomRange {
 /// # 	ZoomRange,
 /// # };
 /// #
-/// let factors = ZoomRange::new(1.5, 2.0).expect("the factor range is valid");
+/// let factors =
+/// 	ZoomRange::try_new(1.5, 2.0).expect("the factor range is valid");
 /// let _zoom = ZoomIn::new(factors);
 /// ```
 #[derive(Clone, Debug)]
@@ -242,7 +243,7 @@ impl ImageStep for ZoomIn {
 /// # };
 /// #
 /// let divisors =
-/// 	ZoomRange::new(1.5, 2.0).expect("the divisor range is valid");
+/// 	ZoomRange::try_new(1.5, 2.0).expect("the divisor range is valid");
 /// let _zoom = ZoomOut::new(divisors);
 /// ```
 #[derive(Clone, Debug)]
@@ -355,7 +356,7 @@ mod tests {
 	fn zoom_in_preserves_dimensions() {
 		let image = gradient_image(4, 5);
 		let mut rng = StdRng::seed_from_u64(42);
-		let factors = ZoomRange::try_new(2.0, 2.0)
+		let factors = ZoomRange::ordered(2.0, 2.0)
 			.expect("the zoom-in factor range is valid");
 		let result = ZoomIn::new(factors).apply(image, &mut rng);
 		assert_eq!(result.dimensions(), (4, 5));
@@ -365,7 +366,7 @@ mod tests {
 	fn zoom_out_preserves_dimensions() {
 		let image = gradient_image(12, 10);
 		let mut rng = StdRng::seed_from_u64(42);
-		let divisors = ZoomRange::try_new(2.0, 2.0)
+		let divisors = ZoomRange::ordered(2.0, 2.0)
 			.expect("the zoom-out divisor range is valid");
 		let result = ZoomOut::new(divisors).apply(image, &mut rng);
 		assert_eq!(result.dimensions(), (12, 10));
@@ -375,7 +376,7 @@ mod tests {
 	fn zoom_in_changes_pixels_when_scaled_up() {
 		let image = gradient_image(8, 8);
 		let mut rng = StdRng::seed_from_u64(42);
-		let factors = ZoomRange::try_new(2.0, 2.0)
+		let factors = ZoomRange::ordered(2.0, 2.0)
 			.expect("the zoom-in factor range is valid");
 		let result = ZoomIn::new(factors).apply(image.clone(), &mut rng);
 		assert_ne!(result, image);
@@ -385,7 +386,7 @@ mod tests {
 	fn zoom_out_centers_resized_content() {
 		let image = RgbImage::from_pixel(8, 8, Rgb([12, 34, 56]));
 		let mut rng = StdRng::seed_from_u64(42);
-		let divisors = ZoomRange::try_new(2.0, 2.0)
+		let divisors = ZoomRange::ordered(2.0, 2.0)
 			.expect("the zoom-out divisor range is valid");
 		let result = ZoomOut::new(divisors).apply(image, &mut rng);
 		assert_eq!(result.get_pixel(3, 3).0, [12, 34, 56]);
@@ -395,7 +396,7 @@ mod tests {
 	fn zoom_out_fills_padding_with_black() {
 		let image = RgbImage::from_pixel(8, 8, Rgb([12, 34, 56]));
 		let mut rng = StdRng::seed_from_u64(42);
-		let divisors = ZoomRange::try_new(2.0, 2.0)
+		let divisors = ZoomRange::ordered(2.0, 2.0)
 			.expect("the zoom-out divisor range is valid");
 		let result = ZoomOut::new(divisors).apply(image, &mut rng);
 		assert_eq!(result.get_pixel(0, 0).0, [0, 0, 0]);
@@ -406,7 +407,7 @@ mod tests {
 		let image = gradient_image(3, 3);
 		let mut rng = StdRng::seed_from_u64(42);
 		let factors =
-			ZoomRange::try_new(1.0, 1.0).expect("a factor of one is valid");
+			ZoomRange::ordered(1.0, 1.0).expect("a factor of one is valid");
 		let result = ZoomIn::new(factors).apply(image.clone(), &mut rng);
 		assert_eq!(result, image);
 	}
@@ -416,7 +417,7 @@ mod tests {
 		let image = gradient_image(3, 3);
 		let mut rng = StdRng::seed_from_u64(42);
 		let divisors =
-			ZoomRange::try_new(1.0, 1.0).expect("a divisor of one is valid");
+			ZoomRange::ordered(1.0, 1.0).expect("a divisor of one is valid");
 		let result = ZoomOut::new(divisors).apply(image.clone(), &mut rng);
 		assert_eq!(result, image);
 	}

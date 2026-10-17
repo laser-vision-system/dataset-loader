@@ -30,12 +30,12 @@ use super::{
 /// #     hue::HueRange,
 /// # };
 /// #
-/// const ROTATION: HueRange = match HueRange::strict(-45, 45) {
+/// const RANGE: HueRange = match HueRange::try_new(-45, 45) {
 /// 	Ok(range) => range,
 /// 	Err(_) => panic!("invalid constant hue range"),
 /// };
 ///
-/// let _rotation = ROTATION;
+/// let _rotation = RANGE;
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct HueRange {
@@ -137,7 +137,10 @@ impl HueRange {
 /// # 	HueRotate,
 /// # };
 /// #
-/// const RANGE: HueRange = HueRange::relaxed(-30, 30);
+/// const RANGE: HueRange = match HueRange::try_new(-45, 45) {
+/// 	Ok(range) => range,
+/// 	Err(_) => panic!("invalid constant hue range"),
+/// };
 /// const ROTATION: HueRotate = HueRotate::new(RANGE);
 /// ```
 #[derive(Clone, Debug)]

@@ -27,7 +27,7 @@ use super::{
 /// # 	GaussianFast,
 /// # };
 /// #
-/// const SIGMA: BlurSigma = match BlurSigma::new(1.0) {
+/// const SIGMA: BlurSigma = match BlurSigma::try_new(1.0) {
 /// 	Ok(sigma) => sigma,
 /// 	Err(_) => panic!("invalid constant blur sigma"),
 /// };
@@ -71,7 +71,7 @@ impl ImageStep for GaussianFast {
 /// 	RandomGaussianFast,
 /// };
 ///
-/// const RANGE: BlurSigmaRange = match BlurSigmaRange::new(0.25, 1.5) {
+/// const RANGE: BlurSigmaRange = match BlurSigmaRange::try_new(0.25, 1.5) {
 /// 	Ok(range) => range,
 /// 	Err(_) => panic!("invalid constant blur range"),
 /// };

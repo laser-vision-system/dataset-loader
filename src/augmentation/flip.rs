@@ -36,7 +36,7 @@ const HALF_PROBABILITY: tf64::PositiveFinite =
 /// #     flip::FlipProbability,
 /// # };
 /// #
-/// const PROBABILITY: FlipProbability = match FlipProbability::new(0.5) {
+/// const PROBABILITY: FlipProbability = match FlipProbability::try_new(0.5) {
 /// 	Ok(probability) => probability,
 /// 	Err(_) => panic!("invalid constant probability"),
 /// };
@@ -50,7 +50,7 @@ const HALF_PROBABILITY: tf64::PositiveFinite =
 /// # use dataset_loader::augmentation::flip::FlipProbability;
 /// #
 /// // This will raise a compile-time error.
-/// const INVALID: FlipProbability = match FlipProbability::new(1.5) {
+/// const INVALID: FlipProbability = match FlipProbability::try_new(1.5) {
 ///     Ok(probability) => probability,
 ///     Err(_) => panic!("invalid constant probability"),
 /// };
@@ -95,9 +95,11 @@ impl FlipProbability {
 /// # 	RandomHorizontalFlip,
 /// # };
 /// #
-/// let probability =
-/// 	FlipProbability::new(0.75).expect("the probability is in range");
-/// let _flip = RandomHorizontalFlip::new(probability);
+/// const PROBABILITY: FlipProbability = match FlipProbability::try_new(0.75) {
+/// 	Ok(probability) => probability,
+/// 	Err(_) => panic!("invalid constant probability"),
+/// };
+/// let _flip = RandomHorizontalFlip::new(PROBABILITY);
 /// ```
 #[derive(Clone, Debug)]
 pub struct RandomHorizontalFlip {
@@ -155,7 +157,7 @@ impl ImageStep for RandomHorizontalFlip {
 /// # };
 /// #
 /// let probability =
-/// 	FlipProbability::new(0.25).expect("the probability is in range");
+/// 	FlipProbability::try_new(0.25).expect("the probability is in range");
 /// let _flip = RandomVerticalFlip::new(probability);
 /// ```
 #[derive(Clone, Debug)]

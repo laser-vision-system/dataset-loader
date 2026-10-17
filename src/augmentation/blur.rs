@@ -57,7 +57,7 @@ const ONE_POSITIVE_FINITE: tf32::PositiveFinite =
 /// # 	blur::BlurSigma,
 /// # };
 /// #
-/// const SIGMA: BlurSigma = match BlurSigma::new(1.25) {
+/// const SIGMA: BlurSigma = match BlurSigma::try_new(1.25) {
 /// 	Ok(sigma) => sigma,
 /// 	Err(_) => panic!("invalid constant blur sigma"),
 /// };
@@ -99,7 +99,7 @@ impl BlurSigma {
 /// # 	blur::BlurSigmaRange,
 /// # };
 /// #
-/// const RANGE: BlurSigmaRange = match BlurSigmaRange::new(0.0, 2.0) {
+/// const RANGE: BlurSigmaRange = match BlurSigmaRange::try_new(0.0, 2.0) {
 /// 	Ok(range) => range,
 /// 	Err(_) => panic!("invalid constant blur range"),
 /// };

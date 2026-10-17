@@ -36,7 +36,7 @@
 //! # };
 //! # use rand::SeedableRng as _;
 //! #
-//! const PROBABILITY: FlipProbability = match FlipProbability::new(0.5) {
+//! const PROBABILITY: FlipProbability = match FlipProbability::try_new(0.5) {
 //! 	Ok(probability) => probability,
 //! 	Err(_) => panic!("invalid constant flip probability"),
 //! };
@@ -47,7 +47,7 @@
 //! 		RandomVerticalFlip::new(PROBABILITY),
 //! 	);
 //!
-//! const HUE_RANGE: HueRange = match HueRange::strict(-180, 180) {
+//! const HUE_RANGE: HueRange = match HueRange::try_new(-180, 180) {
 //! 	Ok(range) => range,
 //! 	Err(_) => panic!("invalid constant hue range"),
 //! };

@@ -22,7 +22,7 @@ use super::super::{
 /// # 	blur::BoxFilterKernel,
 /// # };
 /// #
-/// const KERNEL: BoxFilterKernel = match BoxFilterKernel::new([1.0; 9]) {
+/// const KERNEL: BoxFilterKernel = match BoxFilterKernel::try_new([1.0; 9]) {
 /// 	Ok(kernel) => kernel,
 /// 	Err(_) => panic!("invalid constant box-filter kernel"),
 /// };
@@ -89,7 +89,7 @@ impl BoxFilterKernel {
 /// # 	BoxFilterKernel,
 /// # };
 /// #
-/// const KERNEL: BoxFilterKernel = match BoxFilterKernel::new([1.0; 9]) {
+/// const KERNEL: BoxFilterKernel = match BoxFilterKernel::try_new([1.0; 9]) {
 /// 	Ok(kernel) => kernel,
 /// 	Err(_) => panic!("invalid constant box-filter kernel"),
 /// };
