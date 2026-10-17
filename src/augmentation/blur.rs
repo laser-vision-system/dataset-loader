@@ -123,7 +123,7 @@ impl BlurSigmaRange {
 		}
 	}
 
-	/// Returns the exclusive minimum and maximum bounds.
+	/// Returns the lower-inclusive and upper-exclusive bounds.
 	pub const fn bounds(self) -> (f32, f32) {
 		(self.min, self.max)
 	}
