@@ -1738,6 +1738,7 @@ dependencies = [
  "const-str",
  "csv",
  "image",
+ "rand 0.10.3",
  "serde",
  "thiserror 2.0.21",
 ]
