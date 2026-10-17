@@ -28,6 +28,8 @@ broken_intra_doc_links = "deny"
 
 [lints.clippy]
 
+tabs_in_doc_comments = "allow" # Tabs expected for indentation.
+
 # ===== pedantic group lints ======
 
 pedantic = { level = "deny", priority = -1 }

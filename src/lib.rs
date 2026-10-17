@@ -17,6 +17,7 @@
 		clippy::print_stderr,
 		clippy::use_debug,
 		clippy::panic,
+		clippy::panic_in_result_fn,
 		clippy::unwrap_used,
 		clippy::unwrap_in_result,
 		clippy::expect_used,
