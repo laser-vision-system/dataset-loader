@@ -55,8 +55,9 @@ where
 		validate_weight: u8,
 		test_weight: u8,
 	) -> SplitOutput<Self::Output> {
-		let sum =
-			u16::from(u8::from(train_weight) + validate_weight + test_weight);
+		let sum = u16::from(u8::from(train_weight))
+			+ u16::from(validate_weight)
+			+ u16::from(test_weight);
 		let max = self.get_dataset().len();
 		let ratio = max as f64 / f64::from(sum);
 
@@ -64,14 +65,16 @@ where
 		let mut end = 0;
 
 		let test = (test_weight > 0).then(|| {
-			end += (f64::from(test_weight) * ratio).ceil() as usize;
+			end = ((f64::from(test_weight) * ratio).ceil() as usize)
+				.min(max.saturating_sub(1));
 			let split = Self::create_split(&self, start, end, SplitType::Test);
 			start = end;
 			split
 		});
 
 		let validate = (validate_weight > 0).then(|| {
-			end += (f64::from(validate_weight) * ratio).ceil() as usize;
+			end += ((f64::from(validate_weight) * ratio).ceil() as usize)
+				.min(max.saturating_sub(end).saturating_sub(1));
 			let split =
 				Self::create_split(&self, start, end, SplitType::Validate);
 			start = end;
@@ -128,5 +131,92 @@ where
 {
 	fn from(value: SplitOutput<T>) -> Self {
 		(value.train, value.validate, value.test)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	struct TestDataset(Vec<usize>);
+
+	impl Dataset<usize> for TestDataset {
+		fn get(
+			&self,
+			index: usize,
+		) -> Option<usize> {
+			self.0.get(index).copied()
+		}
+
+		fn len(&self) -> usize {
+			self.0.len()
+		}
+	}
+
+	struct TestSplit {
+		len: usize,
+		split: SplitType,
+	}
+
+	impl Split for TestSplit {
+		fn split_type(&self) -> SplitType {
+			self.split
+		}
+	}
+
+	impl Splitable<usize> for TestDataset {
+		type DatasetType = Self;
+		type Output = TestSplit;
+
+		fn get_dataset(&self) -> &Self::DatasetType {
+			self
+		}
+
+		fn create_split(
+			&self,
+			start: usize,
+			end: usize,
+			split: SplitType,
+		) -> Self::Output {
+			TestSplit {
+				len: end - start,
+				split,
+			}
+		}
+	}
+
+	fn split_lengths(
+		dataset_len: usize,
+		train_weight: u8,
+		validate_weight: u8,
+		test_weight: u8,
+	) -> (usize, Option<usize>, Option<usize>) {
+		let output = TestDataset((0..dataset_len).collect()).into_split(
+			NonZeroU8::new(train_weight).expect("train weight must be nonzero"),
+			validate_weight,
+			test_weight,
+		);
+		(
+			output.train.len,
+			output.validate.map(|split| split.len),
+			output.test.map(|split| split.len),
+		)
+	}
+
+	#[test]
+	fn one_item_dataset_keeps_training_item_without_panicking() {
+		assert_eq!(split_lengths(1, 1, 1, 1), (1, Some(0), Some(0)));
+	}
+
+	#[test]
+	fn large_weights_do_not_overflow_and_splits_cover_dataset() {
+		let lengths = split_lengths(100, u8::MAX, u8::MAX, u8::MAX);
+		assert_eq!(lengths.0 + lengths.1.unwrap() + lengths.2.unwrap(), 100);
+		assert!(lengths.0 > 0);
+	}
+
+	#[test]
+	fn empty_dataset_produces_empty_requested_splits() {
+		assert_eq!(split_lengths(0, 1, 1, 1), (0, Some(0), Some(0)));
 	}
 }

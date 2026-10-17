@@ -1,9 +1,6 @@
 use std::{
 	fmt,
-	path::{
-		Path,
-		PathBuf,
-	},
+	path::Path,
 };
 
 use burn::tensor::Element;
@@ -119,27 +116,6 @@ impl<T> LaserItem for T where T: LaserItemBase
 {
 }
 
-/// Auto trait on [`LaserItemBase`] implementers that also implement
-/// [`TryFrom<ImagePath>`].
-pub trait LaserItemTryFrom:
-	LaserItemBase + TryFrom<ImagePath, Error = LoaderError>
-{
-	/// Trivial conversion from [`PathBuf`] via [`ImagePath`].
-	///
-	/// # Errors
-	///
-	/// If the path is not a valid image path.
-	fn try_from_pathbuf(root: PathBuf) -> Result<Self> {
-		let image_path = ImagePath::try_from(root)?;
-		Self::try_from(image_path)
-	}
-}
-
-impl<T> LaserItemTryFrom for T where
-	T: LaserItemBase + TryFrom<ImagePath, Error = LoaderError>
-{
-}
-
 pub struct DatasetItemFormatter<'a, T>(&'a T)
 where
 	T: LaserItem;
@@ -230,7 +206,7 @@ pub(crate) mod tests {
 			ExitCode,
 			Termination,
 		},
-		str::FromStr,
+		sync::atomic,
 	};
 
 	use image::RgbImage;
@@ -241,16 +217,14 @@ pub(crate) mod tests {
 		ImagePath,
 		Intensity,
 	};
-	use crate::{
-		LoaderError,
-		Result,
-	};
 
+	// Production items come from CSV; direct construction is only a test
+	// fixture.
 	impl<T> BaseItem<T>
 	where
 		T: Element,
 	{
-		pub fn new(
+		pub(crate) fn new(
 			image_path: ImagePath,
 			intensity: Intensity<T>,
 		) -> Self {
@@ -287,63 +261,31 @@ pub(crate) mod tests {
 		PathBuf::from(base).join(name)
 	}
 
-	/// Get the last two parts from the name, separated by `_`.
-	pub(crate) fn extract_parts_from_name(name: &str) -> Vec<&str> {
-		name.rsplit('_')
-			.enumerate()
-			.map_while(|(i, part)| (i < 2).then_some(part))
-			.collect()
+	pub(crate) struct TemporaryImage(PathBuf);
+
+	impl TemporaryImage {
+		pub(crate) fn path(&self) -> &PathBuf {
+			&self.0
+		}
 	}
 
-	/// Parse a string into an intensity.
-	pub(crate) fn parse_intensity_as<T>(input: &str) -> Result<Intensity<T>>
-	where
-		T: Element + FromStr,
-		<T as FromStr>::Err: std::fmt::Display,
-	{
-		let intensity: Intensity<T> = input.parse().map_err(|why| {
-			LoaderError::Intensity(format!(
-				"could not parse intensity from filename: {why}"
-			))
-		})?;
-		Ok(intensity)
+	impl Drop for TemporaryImage {
+		fn drop(&mut self) {
+			let _ = std::fs::remove_file(&self.0);
+		}
 	}
 
-	#[test]
-	fn split_parts_one() {
-		let parts = extract_parts_from_name("render.png");
-		assert_eq!(parts.len(), 1);
-	}
-
-	#[test]
-	fn split_parts_two() {
-		let parts = extract_parts_from_name("render_0012.png");
-		assert_eq!(parts.len(), 2);
-	}
-
-	#[test]
-	fn split_parts_three_capped() {
-		let parts = extract_parts_from_name("render_0012_0012.png");
-		assert_eq!(parts.len(), 2);
-	}
-
-	#[test]
-	fn parse_intensity_correct() {
-		let parsed = parse_intensity_as("0012").unwrap();
-		let intensity = Intensity::from(12_u8);
-		assert_eq!(parsed, intensity);
-	}
-
-	#[test]
-	fn parse_intensity_incorrect_type() {
-		let parsed = parse_intensity_as::<u8>("2.1");
-		parsed.unwrap_err();
-	}
-
-	#[test]
-	fn parse_intensity_too_large_for_type() {
-		let parsed = parse_intensity_as::<u8>("256");
-		parsed.unwrap_err();
+	pub(crate) fn create_temporary_image(filename: &str) -> TemporaryImage {
+		static NEXT_ID: atomic::AtomicU64 = atomic::AtomicU64::new(0);
+		let id = NEXT_ID.fetch_add(1, atomic::Ordering::Relaxed);
+		let path = std::env::temp_dir().join(format!(
+			"dataset-loader-{}-{id}-{filename}",
+			std::process::id()
+		));
+		RgbImage::from_pixel(1, 1, image::Rgb([10, 20, 30]))
+			.save(&path)
+			.expect("temporary image should be writable");
+		TemporaryImage(path)
 	}
 
 	fn parse_base_item(input: &str) -> Option<BaseItem<u8>> {
