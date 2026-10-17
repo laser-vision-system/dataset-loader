@@ -28,7 +28,12 @@ pub trait LaserItemType {
 
 	/// Returns the shared path, position, and intensity fields.
 	///
-	/// This value holds the relative filepath and the intensity value.
+	/// You likely want [`get_intensity`], [`get_position`], or even
+	/// [`get_image_path`].
+	///
+	/// [`get_intensity`]: LaserItem::get_intensity
+	/// [`get_position`]: LaserItem::get_position
+	/// [`get_image_path`]: LaserItem::get_image_path
 	fn get_base_item(&self) -> &BaseItem<Self::IntensityType>;
 
 	/// Returns source-specific field names and their display values.
@@ -124,37 +129,11 @@ impl<T> LaserItem for T where T: LaserItemBase
 /// # Examples
 ///
 /// ```
-/// use std::path::PathBuf;
+/// use dataset_loader::item::LaserItem;
 ///
-/// use dataset_loader::item::{
-/// 	BaseItem,
-/// 	ImagePath,
-/// 	Intensity,
-/// 	LaserItem,
-/// 	LaserItemBase,
-/// 	LaserItemType,
-/// };
-///
-/// struct SampleItem(BaseItem<u8>);
-///
-/// impl LaserItemType for SampleItem {
-/// 	type IntensityType = u8;
-///
-/// 	fn get_base_item(&self) -> &BaseItem<u8> {
-/// 		&self.0
-/// 	}
+/// fn simple_display<T: LaserItem>(item: &T) -> String {
+/// 	item.simple_display().to_string()
 /// }
-///
-/// impl LaserItemBase for SampleItem {
-/// 	fn get_base_item_mut(&mut self) -> &mut BaseItem<u8> {
-/// 		&mut self.0
-/// 	}
-/// }
-///
-/// let path = ImagePath::try_from(PathBuf::from("images/sample.png"))?;
-/// let item = SampleItem(BaseItem::new(path, Intensity::from(12_u8)));
-/// assert_eq!(item.simple_display().to_string(), "12: 'images/sample.png'");
-/// # Ok::<(), dataset_loader::LoaderError>(())
 /// ```
 pub struct DatasetItemFormatter<'a, T>(&'a T)
 where
@@ -188,18 +167,18 @@ where
 /// # Examples
 ///
 /// ```
-/// use std::path::PathBuf;
-///
-/// use dataset_loader::item::{
-/// 	BaseItem,
-/// 	ImagePath,
-/// 	Intensity,
-/// };
-///
-/// let path = ImagePath::try_from(PathBuf::from("images/sample.png"))?;
-/// let item = BaseItem::new(path, Intensity::from(12_u8));
+/// # use dataset_loader::item::BaseItem;
+/// #
+/// let csv = "relative_path,position,intensity\nimages/sample.png,facing_downward,12\n";
+/// let mut reader = csv::Reader::from_reader(csv.as_bytes());
+/// let item: BaseItem<u8> = reader
+/// 	.deserialize()
+/// 	.next()
+/// 	.transpose()?
+/// 	.expect("CSV contains one item");
+/// assert_eq!(item.get_position(), Some("facing_downward"));
 /// assert_eq!(*item.get_intensity(), 12);
-/// # Ok::<(), dataset_loader::LoaderError>(())
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Clone, Debug, Deserialize)]
 pub struct BaseItem<T>

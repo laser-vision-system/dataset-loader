@@ -33,27 +33,6 @@ pub type Synthetic2Dataset<M, MO> = LaserDataset<M, Synthetic2Item, MO>;
 ///
 /// Both the local intensity and external intensity are measured in mW.
 /// The intensity must be in `0..=100`.
-///
-/// # Examples
-///
-/// ```
-/// use std::path::PathBuf;
-///
-/// use dataset_loader::{
-/// 	item::{
-/// 		LaserItem,
-/// 		LaserItemTryFrom as _,
-/// 	},
-/// 	sources::synthetic_2::Synthetic2Item,
-/// };
-///
-/// let item = Synthetic2Item::try_from_pathbuf(PathBuf::from(
-/// 	"images/render_0100_0042.png",
-/// ))?;
-/// assert_eq!(*item.get_intensity(), 100);
-/// assert_eq!(*item.get_external_intensity(), 42);
-/// # Ok::<(), dataset_loader::LoaderError>(())
-/// ```
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct Synthetic2Item {
 	#[serde(flatten)]

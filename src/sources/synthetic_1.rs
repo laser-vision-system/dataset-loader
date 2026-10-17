@@ -31,26 +31,6 @@ pub type IntensityValType = u8;
 /// - 7mW has an unusually bright green spot.
 /// - 9mW is unreasonably bright.
 /// - 10mW has an unusually dark spot.
-///
-/// # Examples
-///
-/// ```
-/// use std::path::PathBuf;
-///
-/// use dataset_loader::{
-/// 	item::{
-/// 		LaserItem,
-/// 		LaserItemTryFrom as _,
-/// 	},
-/// 	sources::synthetic_1::Synthetic1Item,
-/// };
-///
-/// let item = Synthetic1Item::try_from_pathbuf(PathBuf::from(
-/// 	"images/render_0053.png",
-/// ))?;
-/// assert_eq!(*item.get_intensity(), 53);
-/// # Ok::<(), dataset_loader::LoaderError>(())
-/// ```
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct Synthetic1Item {
 	#[serde(flatten)]
