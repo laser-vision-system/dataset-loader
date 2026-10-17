@@ -1,3 +1,5 @@
+//! Typed wrappers for dataset intensity labels.
+
 use std::{
 	borrow::{
 		Borrow,
@@ -14,7 +16,20 @@ use std::{
 use burn::tensor::Element;
 use serde::Deserialize;
 
-/// Razor thin wrapper for the intensity value.
+/// A transparent wrapper around a dataset intensity value.
+///
+/// This type preserves the underlying value's representation for Serde while
+/// giving intensity values a distinct API type.
+///
+/// # Examples
+///
+/// ```
+/// use dataset_loader::item::Intensity;
+///
+/// let intensity = Intensity::from(12_u8);
+/// assert_eq!(*intensity, 12);
+/// assert_eq!(intensity.to_string(), "12");
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialOrd, PartialEq, Deserialize)]
 #[serde(transparent)]
 pub struct Intensity<T>

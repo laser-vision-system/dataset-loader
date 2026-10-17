@@ -1,3 +1,5 @@
+//! Shared traits and value types for dataset records.
+
 use std::{
 	fmt,
 	path::Path,
@@ -19,28 +21,30 @@ use crate::{
 	Result,
 };
 
-/// A trait for a laser dataset item that defines the type the intensity is
-/// stored as.
+/// A dataset item that exposes its common path, position, and intensity.
 pub trait LaserItemType {
+	/// Numeric type used to represent item intensities.
 	type IntensityType: Element;
 
-	/// Get the base item type.
+	/// Returns the shared path, position, and intensity fields.
 	///
 	/// This value holds the relative filepath and the intensity value.
 	fn get_base_item(&self) -> &BaseItem<Self::IntensityType>;
 
-	/// Return source-specific field names and display values.
+	/// Returns source-specific field names and their display values.
+	///
+	/// The default implementation returns an empty list.
 	fn source_fields(&self) -> Vec<(&'static str, String)> {
 		Vec::new()
 	}
 }
 
-/// A trait for a dataset item that is necessary for loading.
+/// An item that supports the mutable operations required while loading.
 ///
 /// If you are accessing a method on this trait, you are probably doing
 /// something wrong.
 pub trait LaserItemBase: LaserItemType {
-	/// Get the base item type as mutable.
+	/// Returns the shared fields for mutation during loading.
 	///
 	/// You very likely do not need to call this method.
 	fn get_base_item_mut(&mut self) -> &mut BaseItem<Self::IntensityType>;
@@ -60,19 +64,18 @@ pub trait LaserItemBase: LaserItemType {
 	}
 }
 
-/// Auto trait on [`LaserItemBase`] that provides the common functions for a
-/// laser dataset item.
+/// Common read and image-loading operations for dataset items.
 pub trait LaserItem: LaserItemType {
-	/// Get the path to the image.
+	/// Returns the path to the image.
 	///
 	/// You likely don't need to use this method.
 	fn get_image_path(&self) -> &ImagePath {
 		&self.get_base_item().image_path
 	}
 
-	/// Get the intensity value of this item.
+	/// Returns the intensity value of this item.
 	///
-	/// Useful for mapping operations.
+	/// Useful when a mapper needs the item's label.
 	fn get_intensity(&self) -> Intensity<Self::IntensityType> {
 		self.get_base_item().intensity
 	}
@@ -103,7 +106,7 @@ pub trait LaserItem: LaserItemType {
 		Ok(image)
 	}
 
-	/// Return a struct that implements display using the path and intensity.
+	/// Returns a display adapter containing the intensity and image path.
 	fn simple_display(&self) -> DatasetItemFormatter<'_, Self>
 	where
 		Self: Sized,
@@ -116,6 +119,43 @@ impl<T> LaserItem for T where T: LaserItemBase
 {
 }
 
+/// A display adapter that formats an item as intensity and image path.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use dataset_loader::item::{
+/// 	BaseItem,
+/// 	ImagePath,
+/// 	Intensity,
+/// 	LaserItem,
+/// 	LaserItemBase,
+/// 	LaserItemType,
+/// };
+///
+/// struct SampleItem(BaseItem<u8>);
+///
+/// impl LaserItemType for SampleItem {
+/// 	type IntensityType = u8;
+///
+/// 	fn get_base_item(&self) -> &BaseItem<u8> {
+/// 		&self.0
+/// 	}
+/// }
+///
+/// impl LaserItemBase for SampleItem {
+/// 	fn get_base_item_mut(&mut self) -> &mut BaseItem<u8> {
+/// 		&mut self.0
+/// 	}
+/// }
+///
+/// let path = ImagePath::try_from(PathBuf::from("images/sample.png"))?;
+/// let item = SampleItem(BaseItem::new(path, Intensity::from(12_u8)));
+/// assert_eq!(item.simple_display().to_string(), "12: 'images/sample.png'");
+/// # Ok::<(), dataset_loader::LoaderError>(())
+/// ```
 pub struct DatasetItemFormatter<'a, T>(&'a T)
 where
 	T: LaserItem;
@@ -144,6 +184,23 @@ where
 ///
 /// This allows trait methods to be able to provide a default implementation
 /// which builds this type.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use dataset_loader::item::{
+/// 	BaseItem,
+/// 	ImagePath,
+/// 	Intensity,
+/// };
+///
+/// let path = ImagePath::try_from(PathBuf::from("images/sample.png"))?;
+/// let item = BaseItem::new(path, Intensity::from(12_u8));
+/// assert_eq!(*item.get_intensity(), 12);
+/// # Ok::<(), dataset_loader::LoaderError>(())
+/// ```
 #[derive(Clone, Debug, Deserialize)]
 pub struct BaseItem<T>
 where
@@ -172,15 +229,17 @@ where
 		self.image_path.canonicalise_with(root)
 	}
 
+	/// Returns the item's image path.
 	pub fn get_image_path(&self) -> &ImagePath {
 		&self.image_path
 	}
 
+	/// Returns the item's intensity value.
 	pub fn get_intensity(&self) -> Intensity<T> {
 		self.intensity
 	}
 
-	/// Get optional position metadata for this item.
+	/// Returns optional position metadata for this item.
 	pub fn get_position(&self) -> Option<&str> {
 		self.position.as_deref()
 	}

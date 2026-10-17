@@ -1,12 +1,17 @@
+//! Weighted train, validation, and test dataset partitions.
+
 use std::num::NonZeroU8;
 
 use burn::data::dataset::Dataset;
 
-/// A subdivision of the dataset for use in specific scenarios.
+/// Identifies the intended use of a dataset subdivision.
 #[derive(Clone, Copy, Debug)]
 pub enum SplitType {
+	/// Model fitting data.
 	Train,
+	/// Hyperparameter selection data.
 	Validate,
+	/// Final evaluation data.
 	Test,
 }
 
@@ -14,6 +19,8 @@ pub enum SplitType {
 ///
 /// This is either the train, validate, or test split.
 pub trait Split {
+	/// Returns whether this dataset represents training, validation, or test
+	/// data.
 	fn split_type(&self) -> SplitType;
 }
 
@@ -23,13 +30,15 @@ where
 	Self: Sized, // To allow this to be consuming.
 	MO: Send + Sync + Clone,
 {
+	/// Dataset adapter used as the source for this split.
 	type DatasetType: Dataset<MO>;
+	/// Dataset representation returned for each partition.
 	type Output: Split;
 
-	/// Helper method to get the internal dataset object.
+	/// Returns the dataset being divided.
 	fn get_dataset(&self) -> &Self::DatasetType;
 
-	/// Helper function to create a split dataset.
+	/// Creates a split from the half-open item range `start..end`.
 	fn create_split(
 		&self,
 		start: usize,
@@ -37,9 +46,46 @@ where
 		split: SplitType,
 	) -> Self::Output;
 
-	/// Split this dataset into train/validate/test.
+	/// Splits the dataset into training, optional validation, and optional test
+	/// portions using relative weights.
 	///
-	/// This a consuming operation.
+	/// The operation consumes the source dataset. Test items are assigned
+	/// first, followed by validation items; all remaining items are
+	/// training data. Each requested non-training size is rounded up, but
+	/// is capped so at least one item remains for training when the dataset
+	/// is non-empty. Requested validation or test splits may therefore be
+	/// empty for small datasets.
+	///
+	/// # Examples
+	///
+	/// ```
+	/// use dataset_loader::splitting::{Split, SplitType, Splitable};
+	/// use std::num::NonZeroU8;
+	/// # use burn::data::dataset::Dataset;
+	/// # struct Numbers(Vec<u8>);
+	/// # struct NumberSplit(usize, SplitType);
+	/// # impl Dataset<u8> for Numbers {
+	/// #     fn get(&self, index: usize) -> Option<u8> { self.0.get(index).copied() }
+	/// #     fn len(&self) -> usize { self.0.len() }
+	/// # }
+	/// # impl Split for NumberSplit { fn split_type(&self) -> SplitType { self.1 } }
+	/// # impl Splitable<u8> for Numbers {
+	/// #     type DatasetType = Self;
+	/// #     type Output = NumberSplit;
+	/// #     fn get_dataset(&self) -> &Self { self }
+	/// #     fn create_split(&self, start: usize, end: usize, kind: SplitType) -> NumberSplit {
+	/// #         NumberSplit(end - start, kind)
+	/// #     }
+	/// # }
+	/// let splits = Numbers((0..10).collect()).into_split(NonZeroU8::new(8).unwrap(), 1, 1);
+	/// assert_eq!(splits.train.0, 8);
+	/// assert_eq!(splits.validate.unwrap().0, 1);
+	/// assert_eq!(splits.test.unwrap().0, 1);
+	/// ```
+	///
+	/// # Panics
+	///
+	/// This method does not panic when splitting an empty or small dataset.
 	#[expect(
 		clippy::cast_precision_loss,
 		clippy::cast_possible_truncation,
@@ -89,13 +135,33 @@ where
 	}
 }
 
-/// The output of splitting a dataset.
+/// The three outputs of splitting a dataset.
+///
+/// Validation and test splits are `None` when their weights were zero.
+///
+/// # Examples
+///
+/// ```
+/// use dataset_loader::splitting::{
+/// 	SplitOutput,
+/// 	SplitType,
+/// };
+/// # struct Part(SplitType);
+/// # impl dataset_loader::splitting::Split for Part {
+/// #     fn split_type(&self) -> SplitType { self.0 }
+/// # }
+/// let output = SplitOutput::new(Part(SplitType::Train), None, None);
+/// assert!(output.validate.is_none());
+/// ```
 pub struct SplitOutput<T>
 where
 	T: Split,
 {
+	/// Training portion; always present, but may be empty for an empty source.
 	pub train: T,
+	/// Validation portion, omitted when its weight is zero.
 	pub validate: Option<T>,
+	/// Test portion, omitted when its weight is zero.
 	pub test: Option<T>,
 }
 
@@ -103,6 +169,7 @@ impl<T> SplitOutput<T>
 where
 	T: Split,
 {
+	/// Constructs a split output from its three partitions.
 	pub fn new(
 		train: T,
 		validate: Option<T>,

@@ -1,3 +1,5 @@
+//! CSV-backed datasets and their mapped Burn dataset adapters.
+
 use std::{
 	fmt,
 	path::Path,
@@ -36,11 +38,29 @@ type DatasetSelect<M, MI, MO> = SelectionDataset<DatasetMap<M, MI>, MO>;
 
 type FileReader = csv::Reader<std::fs::File>;
 
-/// A function that returns false if an item should be discarded, and true
-/// otherwise.
+/// A predicate selecting dataset items to retain.
+///
+/// Items for which the predicate returns `false` are discarded before their
+/// image paths are resolved.
+///
+/// # Examples
+///
+/// ```
+/// use dataset_loader::dataset::FilterFn;
+///
+/// let keep_positive: FilterFn<i32> = Box::new(|item| *item > 0);
+/// assert!(keep_positive(&1));
+/// assert!(!keep_positive(&0));
+/// ```
 pub type FilterFn<T> = Box<dyn Fn(&T) -> bool>;
 
-/// A generic dataset type for mapped [`LaserItem`]s.
+/// A CSV-backed dataset of laser items mapped to an output type.
+///
+/// Rows are read from `index.csv` in the dataset root, filtered, and have their
+/// image paths resolved against that root. Access order is shuffled with a
+/// fixed seed, so repeated construction from the same input order produces the
+/// same selection order. Mapper execution remains lazy through Burn's mapped
+/// dataset adapter.
 pub struct LaserDataset<M, MI, MO>
 where
 	M: Mapper<MI, MO> + Send + Sync,
@@ -95,13 +115,18 @@ where
 		SelectionDataset::new_shuffled(dataset, 42)
 	}
 
-	/// Create a new dataset instance.
+	/// Loads a dataset from the root folder's `index.csv` file.
+	///
+	/// The CSV must contain fields accepted by `MI`; the shared item path
+	/// column is named `relative_path`. Filters run before path
+	/// canonicalisation. The resulting dataset uses a deterministic shuffle
+	/// seed of `42`.
 	///
 	/// # Errors
 	///
-	/// - If the CSV file is not in the root folder
-	/// - If an entry fails to be deserialised
-	/// - If the item's path fails to be resolved
+	/// Returns [`LoaderError::CSV`] if the index is missing, unreadable, or has
+	/// malformed records, and [`LoaderError::Path`] if a retained item's image
+	/// path cannot be canonicalized.
 	pub fn try_new<P>(
 		mapper: M,
 		dataset_root_folder: P,
@@ -187,7 +212,7 @@ where
 	}
 }
 
-/// A train/validate/test split of the Synthetic 1 dataset.
+/// One train, validation, or test partition of a [`LaserDataset`].
 pub struct LaserDatasetSplit<M, MI, MO>
 where
 	M: Mapper<MI, MO> + Send + Sync,

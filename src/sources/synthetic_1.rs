@@ -1,3 +1,5 @@
+//! Types and loader for the first synthetic dataset.
+
 use std::{
 	fmt::Display,
 	path::Path,
@@ -19,14 +21,36 @@ use crate::{
 	},
 };
 
+/// Numeric intensity representation used by this source.
+/// Integer representation used for laser intensity in this source.
 pub type IntensityValType = u8;
 
-/// The first synthetic dataset.
+/// An item from the first synthetic dataset.
 ///
-/// Intensity: mW, `0..=53`.
+/// The intensity is measured in mW and must be in `0..=53`.
 /// - 7mW has an unusually bright green spot.
 /// - 9mW is unreasonably bright.
 /// - 10mW has an unusually dark spot.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use dataset_loader::{
+/// 	item::{
+/// 		LaserItem,
+/// 		LaserItemTryFrom as _,
+/// 	},
+/// 	sources::synthetic_1::Synthetic1Item,
+/// };
+///
+/// let item = Synthetic1Item::try_from_pathbuf(PathBuf::from(
+/// 	"images/render_0053.png",
+/// ))?;
+/// assert_eq!(*item.get_intensity(), 53);
+/// # Ok::<(), dataset_loader::LoaderError>(())
+/// ```
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct Synthetic1Item {
 	#[serde(flatten)]
@@ -56,13 +80,15 @@ impl Display for Synthetic1Item {
 	}
 }
 
+/// A mapped dataset whose input items are [`Synthetic1Item`]s.
 pub type Synthetic1Dataset<M, MO> = LaserDataset<M, Synthetic1Item, MO>;
 
-/// Create the `synthetic_1` dataset loader.
+/// Loads the `synthetic_1` dataset through a mapper.
 ///
 /// # Errors
 ///
-/// If the dataset fails to load.
+/// Returns a loading error if `index.csv` cannot be read, a row cannot be
+/// deserialised, or a retained image path cannot be resolved.
 pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,

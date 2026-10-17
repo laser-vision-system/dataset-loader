@@ -1,3 +1,5 @@
+//! Validated image-path representation used by dataset items.
+
 #![expect(
 	clippy::expect_used,
 	reason = "This type handles the path validation internally"
@@ -20,9 +22,24 @@ use crate::error::{
 	Result,
 };
 
-/// A deconstructed type for an item's path.
+/// A path to a dataset image.
 ///
-/// Used for path validation logic.
+/// Construction verifies that the path has an extension. It does not verify
+/// that the file exists or that its contents are an image; canonicalisation
+/// during dataset loading performs the existence check.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use dataset_loader::item::ImagePath;
+///
+/// let path = ImagePath::try_from(PathBuf::from("images/sample.png"))?;
+/// assert_eq!(path.get_extension(), "png");
+/// assert_eq!(path.get_filename(), "sample");
+/// # Ok::<(), dataset_loader::LoaderError>(())
+/// ```
 #[derive(Clone, Debug, Default, serde::Deserialize)]
 #[serde(try_from = "PathBuf")]
 pub struct ImagePath {
@@ -30,11 +47,13 @@ pub struct ImagePath {
 }
 
 impl ImagePath {
-	/// Attach a root path to the relative path and canonicalise.
+	/// Joins a dataset root to this path and stores the canonical absolute
+	/// path.
 	///
 	/// # Errors
 	///
-	/// If the absolute path is non-canonical.
+	/// Returns [`LoaderError::Path`] if the joined path does not exist or
+	/// cannot be canonicalised.
 	pub fn canonicalise_with(
 		&mut self,
 		root: &Path,
@@ -50,7 +69,7 @@ impl ImagePath {
 		Ok(())
 	}
 
-	/// Get the file extension for this item path.
+	/// Returns the path extension as a lossy UTF-8 string.
 	///
 	/// # Panics
 	///
@@ -62,7 +81,7 @@ impl ImagePath {
 			.to_string_lossy()
 	}
 
-	/// Get the file name for this item path.
+	/// Returns the final filename without its extension.
 	///
 	/// # Panics
 	///
@@ -74,7 +93,7 @@ impl ImagePath {
 			.to_string_lossy()
 	}
 
-	/// Get all parent directories for this item path.
+	/// Returns parent path components from nearest to farthest.
 	///
 	/// The list is in ascending order
 	/// (parent -> grandparent -> great-grandparent -> ...).
@@ -91,8 +110,15 @@ impl ImagePath {
 impl TryFrom<PathBuf> for ImagePath {
 	type Error = LoaderError;
 
+	/// Creates a path after checking that it has a file extension.
+	///
+	/// This check does not require the path to exist or point to a regular
+	/// file.
+	///
+	/// # Errors
+	///
+	/// Returns [`LoaderError::Path`] when the path has no extension.
 	fn try_from(path: PathBuf) -> Result<Self> {
-		// TODO: Basic non-canonical validation.
 		path.extension().ok_or(LoaderError::Path(format!(
 			"path is not a file or has no extension: {}",
 			path.display()
@@ -103,7 +129,6 @@ impl TryFrom<PathBuf> for ImagePath {
 		})
 	}
 }
-
 impl fmt::Display for ImagePath {
 	fn fmt(
 		&self,
