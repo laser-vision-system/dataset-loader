@@ -5,7 +5,7 @@ use image::{
 	GenericImageView,
 	ImageBuffer,
 	Pixel,
-	Primitive,
+	Primitive as _,
 	imageops::{
 		FilterType,
 		crop,
@@ -20,6 +20,7 @@ use rand::{
 
 use super::{
 	AugmentationError,
+	GenericImageBuffer,
 	ImageStep,
 };
 
@@ -183,12 +184,12 @@ impl ZoomIn {
 impl ImageStep for ZoomIn {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		resample_to_canvas(
 			image,
@@ -233,12 +234,12 @@ impl ZoomOut {
 impl ImageStep for ZoomOut {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		resample_to_canvas(
 			image,
@@ -260,11 +261,11 @@ fn resample_to_canvas<I, P>(
 	image: I,
 	scale: f32,
 	fit: CanvasFit,
-) -> ImageBuffer<P, Vec<P::Subpixel>>
+) -> GenericImageBuffer<P>
 where
 	I: GenericImageView<Pixel = P>
 		+ Into<DynamicImage>
-		+ Into<ImageBuffer<P, Vec<P::Subpixel>>>,
+		+ Into<GenericImageBuffer<P>>,
 	P: Pixel + 'static,
 {
 	let (width, height) = image.dimensions();

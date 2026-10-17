@@ -1,13 +1,15 @@
 use image::{
 	DynamicImage,
-	ImageBuffer,
 	Pixel,
 	imageops::fast_blur,
 };
 use rand::rngs::StdRng;
 
 use super::{
-	super::ImageStep,
+	super::{
+		GenericImageBuffer,
+		ImageStep,
+	},
 	BlurSigma,
 	BlurSigmaRange,
 	apply_blur,
@@ -48,12 +50,12 @@ impl GaussianFast {
 impl ImageStep for GaussianFast {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		_rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		apply_blur(image, self.sigma, fast_blur)
 	}
@@ -104,12 +106,12 @@ impl Default for RandomGaussianFast {
 impl ImageStep for RandomGaussianFast {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		apply_blur(image, self.sigma.sample(rng), fast_blur)
 	}

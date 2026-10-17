@@ -1,6 +1,5 @@
 use image::{
 	DynamicImage,
-	ImageBuffer,
 	Pixel,
 	imageops::{
 		GaussianBlurParameters,
@@ -9,7 +8,10 @@ use image::{
 };
 use rand::rngs::StdRng;
 
-use super::super::ImageStep;
+use super::super::{
+	GenericImageBuffer,
+	ImageStep,
+};
 
 /// Applies a Gaussian blur using explicit kernel parameters.
 ///
@@ -38,12 +40,12 @@ impl GaussianAdvanced {
 impl ImageStep for GaussianAdvanced {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		_rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		blur_advanced(&image, self.parameters)
 	}

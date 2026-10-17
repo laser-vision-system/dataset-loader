@@ -20,7 +20,6 @@ pub use gaussian::{
 };
 use image::{
 	DynamicImage,
-	ImageBuffer,
 	Pixel,
 };
 use rand::{
@@ -28,7 +27,10 @@ use rand::{
 	rngs::StdRng,
 };
 
-use super::AugmentationError;
+use super::{
+	AugmentationError,
+	GenericImageBuffer,
+};
 
 /// A validated finite, non-negative blur radius.
 ///
@@ -139,16 +141,13 @@ impl BlurSigmaRange {
 
 /// Applies a blur unless its validated radius is zero.
 fn apply_blur<P>(
-	image: ImageBuffer<P, Vec<P::Subpixel>>,
+	image: GenericImageBuffer<P>,
 	sigma: BlurSigma,
-	blur: fn(
-		&ImageBuffer<P, Vec<P::Subpixel>>,
-		f32,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>,
-) -> ImageBuffer<P, Vec<P::Subpixel>>
+	blur: fn(&GenericImageBuffer<P>, f32) -> GenericImageBuffer<P>,
+) -> GenericImageBuffer<P>
 where
 	P: Pixel,
-	ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+	GenericImageBuffer<P>: Into<DynamicImage>,
 {
 	if sigma.0 == 0.0 {
 		return image;

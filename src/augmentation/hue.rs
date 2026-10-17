@@ -2,7 +2,6 @@
 
 use image::{
 	DynamicImage,
-	ImageBuffer,
 	Pixel,
 	imageops::huerotate,
 };
@@ -13,6 +12,7 @@ use rand::{
 
 use super::{
 	AugmentationError,
+	GenericImageBuffer,
 	ImageStep,
 };
 
@@ -154,12 +154,12 @@ impl Default for HueRotate {
 impl ImageStep for HueRotate {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		if self.range.min == self.range.max {
 			return image;

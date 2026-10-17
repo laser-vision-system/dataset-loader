@@ -69,10 +69,11 @@ use image::{
 	Pixel,
 };
 use rand::rngs::StdRng;
-use thiserror::Error;
+
+type GenericImageBuffer<P> = ImageBuffer<P, Vec<<P as Pixel>::Subpixel>>;
 
 /// A validation error returned when augmentation parameters are invalid.
-#[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, thiserror::Error, Eq, PartialEq)]
 pub enum AugmentationError {
 	/// Hue bounds are not in strictly increasing order.
 	#[error("hue range minimum must be less than its maximum")]
@@ -120,12 +121,12 @@ pub trait ImageStep: Clone + Send + Sync {
 	/// Transforms an owned image buffer and returns the result at runtime.
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>;
+		GenericImageBuffer<P>: Into<DynamicImage>;
 
 	/// Appends a step to the augmentation pipeline for runtime execution.
 	///
@@ -200,12 +201,12 @@ where
 {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		let image = self.first.apply(image, rng);
 		self.next.apply(image, rng)
@@ -234,12 +235,12 @@ pub struct NoOp;
 impl ImageStep for NoOp {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		_rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		image
 	}
@@ -248,7 +249,7 @@ impl ImageStep for NoOp {
 #[cfg(test)]
 mod tests {
 	use image::{
-		Primitive,
+		Primitive as _,
 		Rgb,
 		RgbImage,
 	};
@@ -265,12 +266,12 @@ mod tests {
 	impl ImageStep for SetFirstSubPixelValue {
 		fn apply<P>(
 			&self,
-			mut image: ImageBuffer<P, Vec<P::Subpixel>>,
+			mut image: GenericImageBuffer<P>,
 			_rng: &mut StdRng,
-		) -> ImageBuffer<P, Vec<P::Subpixel>>
+		) -> GenericImageBuffer<P>
 		where
 			P: Pixel + 'static,
-			ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+			GenericImageBuffer<P>: Into<DynamicImage>,
 		{
 			for pixel in image.pixels_mut() {
 				pixel.channels_mut()[0] = if self.0 {
@@ -289,12 +290,12 @@ mod tests {
 	impl ImageStep for RandomFirstSubPixelValue {
 		fn apply<P>(
 			&self,
-			mut image: ImageBuffer<P, Vec<P::Subpixel>>,
+			mut image: GenericImageBuffer<P>,
 			rng: &mut StdRng,
-		) -> ImageBuffer<P, Vec<P::Subpixel>>
+		) -> GenericImageBuffer<P>
 		where
 			P: Pixel + 'static,
-			ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+			GenericImageBuffer<P>: Into<DynamicImage>,
 		{
 			let is_high = rng.random_bool(0.5);
 			for pixel in image.pixels_mut() {

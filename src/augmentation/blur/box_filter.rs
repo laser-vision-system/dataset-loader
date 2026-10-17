@@ -1,6 +1,5 @@
 use image::{
 	DynamicImage,
-	ImageBuffer,
 	Pixel,
 	imageops::filter3x3,
 };
@@ -8,6 +7,7 @@ use rand::rngs::StdRng;
 
 use super::super::{
 	AugmentationError,
+	GenericImageBuffer,
 	ImageStep,
 };
 
@@ -123,12 +123,12 @@ impl Default for BoxFilter {
 impl ImageStep for BoxFilter {
 	fn apply<P>(
 		&self,
-		image: ImageBuffer<P, Vec<P::Subpixel>>,
+		image: GenericImageBuffer<P>,
 		_rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		let width = image.width();
 		let height = image.height();

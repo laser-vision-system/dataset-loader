@@ -2,7 +2,6 @@
 
 use image::{
 	DynamicImage,
-	ImageBuffer,
 	Pixel,
 	imageops::{
 		flip_horizontal_in_place,
@@ -16,6 +15,7 @@ use rand::{
 
 use super::{
 	AugmentationError,
+	GenericImageBuffer,
 	ImageStep,
 };
 
@@ -120,12 +120,12 @@ impl Default for RandomHorizontalFlip {
 impl ImageStep for RandomHorizontalFlip {
 	fn apply<P>(
 		&self,
-		mut image: ImageBuffer<P, Vec<P::Subpixel>>,
+		mut image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		if rng.random_bool(self.probability.0) {
 			flip_horizontal_in_place(&mut image);
@@ -179,12 +179,12 @@ impl Default for RandomVerticalFlip {
 impl ImageStep for RandomVerticalFlip {
 	fn apply<P>(
 		&self,
-		mut image: ImageBuffer<P, Vec<P::Subpixel>>,
+		mut image: GenericImageBuffer<P>,
 		rng: &mut StdRng,
-	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	) -> GenericImageBuffer<P>
 	where
 		P: Pixel + 'static,
-		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
 		if rng.random_bool(self.probability.0) {
 			flip_vertical_in_place(&mut image);
