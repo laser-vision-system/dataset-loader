@@ -18,6 +18,7 @@ serde = { version = "1", default-features = false, features = [
 	"derive",
 ]}
 thiserror = "2.0"
+typed_floats = "1"
 
 [dev-dependencies]
 const-str = "1.1"

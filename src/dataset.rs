@@ -258,7 +258,6 @@ mod tests {
 
 	use std::{
 		fmt::Display,
-		num::NonZeroU8,
 		path::PathBuf,
 		process::{
 			ExitCode,
@@ -556,11 +555,17 @@ mod tests {
 		let root = create_temporary_dataset();
 		let dataset =
 			LaserDataset::try_new(DummyMapper, root.root(), &[]).unwrap();
-		let train_split = NonZeroU8::new(80).unwrap();
-		let splits = dataset.into_split(train_split, 15, 5);
+		let weights = crate::splitting::SplitWeights::try_new(
+			typed_floats::tf32::PositiveFinite::new(80.0).unwrap(),
+			typed_floats::tf32::PositiveFinite::new(15.0).unwrap(),
+			typed_floats::tf32::PositiveFinite::new(5.0).unwrap(),
+		)
+		.unwrap();
+		let splits = dataset.into_split(weights);
 		let (train, validate, test) = splits.into();
 		println!(
-			"\n ===== Train:\n{train}\n\n ===== Validate present: {}\n===== Test present: {}",
+			"\n ===== Train present: {}\n ===== Validate present: {}\n===== Test present: {}",
+			train.is_some(),
 			validate.is_some(),
 			test.is_some()
 		);

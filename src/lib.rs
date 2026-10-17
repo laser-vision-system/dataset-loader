@@ -58,9 +58,12 @@ pub use self::{
 		Result,
 	},
 	splitting::{
+		PositiveFinite,
 		Split,
 		SplitOutput,
 		SplitType,
+		SplitWeights,
 		Splitable,
+		StrictlyPositiveFinite,
 	},
 };
