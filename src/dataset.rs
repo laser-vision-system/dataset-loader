@@ -239,6 +239,7 @@ mod tests {
 			ExitCode,
 			Termination,
 		},
+		sync::atomic,
 	};
 
 	use image::RgbImage;
@@ -253,9 +254,45 @@ mod tests {
 		LaserItemType,
 	};
 
-	const DATASET_PATH: &str = "../datasets/synthetic_1";
-
 	type IntensityValType = u8;
+
+	struct TemporaryDataset(PathBuf);
+
+	impl TemporaryDataset {
+		fn root(&self) -> &Path {
+			&self.0
+		}
+	}
+
+	impl Drop for TemporaryDataset {
+		fn drop(&mut self) {
+			let _ = std::fs::remove_dir_all(&self.0);
+		}
+	}
+
+	fn create_temporary_dataset() -> TemporaryDataset {
+		static NEXT_ID: atomic::AtomicU64 = atomic::AtomicU64::new(0);
+		let id = NEXT_ID.fetch_add(1, atomic::Ordering::Relaxed);
+		let root = std::env::temp_dir().join(format!(
+			"dataset-loader-dataset-{}-{id}",
+			std::process::id()
+		));
+		let images = root.join("images");
+		std::fs::create_dir_all(&images)
+			.expect("temporary dataset image folder should be created");
+		for intensity in [9, 10] {
+			let path = images.join(format!("render_{intensity:04}.png"));
+			RgbImage::from_pixel(1, 1, image::Rgb([10, 20, 30]))
+				.save(path)
+				.expect("temporary dataset image should be written");
+		}
+		std::fs::write(
+			root.join(INDEX_FILENAME),
+			"relative_path,intensity\nimages/render_0009.png,9\nimages/render_0010.png,10\n",
+		)
+		.expect("temporary dataset index should be written");
+		TemporaryDataset(root)
+	}
 
 	#[derive(Clone, Debug, Deserialize)]
 	pub struct DummyMapperInput {
@@ -435,16 +472,18 @@ mod tests {
 	#[test]
 	#[ignore = "intended for visual inspection"]
 	fn try_new_dataset_dummy_correct() -> Result<DummyDataset> {
-		LaserDataset::try_new(DummyMapper, PathBuf::from(DATASET_PATH), &[])
+		let root = create_temporary_dataset();
+		LaserDataset::try_new(DummyMapper, root.root(), &[])
 			.inspect(|ds| println!("{ds}"))
 	}
 
 	#[test]
 	#[ignore = "intended for visual inspection"]
 	fn try_new_filtered_dataset_dummy_correct() -> Result<DummyDataset> {
+		let root = create_temporary_dataset();
 		LaserDataset::try_new(
 			DummyMapper,
-			PathBuf::from(DATASET_PATH),
+			root.root(),
 			&[Box::new(|item| matches!(*item.get_intensity(), 0..10))],
 		)
 		.inspect(|ds| println!("{ds}"))
@@ -452,29 +491,53 @@ mod tests {
 
 	#[test]
 	fn try_new_dataset_correct() -> Result<LoadedDataset> {
-		LaserDataset::try_new(LoadImage, PathBuf::from(DATASET_PATH), &[])
+		let root = create_temporary_dataset();
+		let dataset = LaserDataset::try_new(LoadImage, root.root(), &[])?;
+		assert_eq!(dataset.len(), 2);
+		assert_eq!(
+			dataset
+				.get(0)
+				.expect("dataset item exists")
+				.image
+				.dimensions(),
+			(1, 1)
+		);
+		Ok(dataset)
 	}
 
 	#[test]
 	fn try_new_filtered_dataset_correct() -> Result<LoadedDataset> {
-		LaserDataset::try_new(
+		let root = create_temporary_dataset();
+		let dataset = LaserDataset::try_new(
 			LoadImage,
-			PathBuf::from(DATASET_PATH),
+			root.root(),
 			&[Box::new(|item| item.get_intensity() != Intensity::from(9))],
-		)
+		)?;
+		assert_eq!(dataset.len(), 1);
+		assert_eq!(
+			dataset
+				.get(0)
+				.expect("filtered dataset item exists")
+				.image
+				.dimensions(),
+			(1, 1)
+		);
+		Ok(dataset)
 	}
 
 	#[test]
 	#[ignore = "intended for visual inspection"]
 	fn split_dataset_dummy_correct() {
-		let dataset = try_new_dataset_dummy_correct().unwrap();
+		let root = create_temporary_dataset();
+		let dataset =
+			LaserDataset::try_new(DummyMapper, root.root(), &[]).unwrap();
 		let train_split = NonZeroU8::new(80).unwrap();
 		let splits = dataset.into_split(train_split, 15, 5);
-		let (train, Some(validate), Some(test)) = splits.into() else {
-			panic!("fuck")
-		};
+		let (train, validate, test) = splits.into();
 		println!(
-			"\n ===== Train:\n{train}\n\n ===== Validate:\n{validate}\n\n ===== Test:\n{test}"
+			"\n ===== Train:\n{train}\n\n ===== Validate present: {}\n===== Test present: {}",
+			validate.is_some(),
+			test.is_some()
 		);
 	}
 }
