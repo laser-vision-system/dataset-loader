@@ -248,6 +248,7 @@ impl ImageStep for NoOp {
 #[cfg(test)]
 mod tests {
 	use image::{
+		Primitive,
 		Rgb,
 		RgbImage,
 	};
@@ -259,12 +260,12 @@ mod tests {
 	use super::*;
 
 	#[derive(Clone)]
-	struct SetFirstSubPixelValue(u8);
+	struct SetFirstSubPixelValue(bool);
 
 	impl ImageStep for SetFirstSubPixelValue {
 		fn apply<P>(
 			&self,
-			image: ImageBuffer<P, Vec<P::Subpixel>>,
+			mut image: ImageBuffer<P, Vec<P::Subpixel>>,
 			_rng: &mut StdRng,
 		) -> ImageBuffer<P, Vec<P::Subpixel>>
 		where
@@ -272,7 +273,11 @@ mod tests {
 			ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
 		{
 			for pixel in image.pixels_mut() {
-				pixel.channels_mut()[0] = self.0.into();
+				pixel.channels_mut()[0] = if self.0 {
+					P::Subpixel::DEFAULT_MAX_VALUE
+				} else {
+					P::Subpixel::DEFAULT_MIN_VALUE
+				};
 			}
 			image
 		}
@@ -284,16 +289,20 @@ mod tests {
 	impl ImageStep for RandomFirstSubPixelValue {
 		fn apply<P>(
 			&self,
-			image: ImageBuffer<P, Vec<P::Subpixel>>,
+			mut image: ImageBuffer<P, Vec<P::Subpixel>>,
 			rng: &mut StdRng,
 		) -> ImageBuffer<P, Vec<P::Subpixel>>
 		where
 			P: Pixel + 'static,
 			ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
 		{
-			let red = rng.random_range(0..=u8::MAX);
+			let is_high = rng.random_bool(0.5);
 			for pixel in image.pixels_mut() {
-				pixel.channels_mut()[0] = red.into();
+				pixel.channels_mut()[0] = if is_high {
+					P::Subpixel::DEFAULT_MAX_VALUE
+				} else {
+					P::Subpixel::DEFAULT_MIN_VALUE
+				};
 			}
 			image
 		}
@@ -302,13 +311,13 @@ mod tests {
 	#[test]
 	fn sequence_applies_steps_in_order() {
 		let pipeline =
-			SetFirstSubPixelValue(10).then(SetFirstSubPixelValue(20));
+			SetFirstSubPixelValue(false).then(SetFirstSubPixelValue(true));
 		let image = RgbImage::from_pixel(1, 1, Rgb([0, 0, 0]));
 		let mut rng = StdRng::seed_from_u64(42);
 
 		let image = pipeline.apply(image, &mut rng);
 
-		assert_eq!(image.get_pixel(0, 0).0[0], 20);
+		assert_eq!(image.get_pixel(0, 0).0[0], 255);
 	}
 
 	#[test]
