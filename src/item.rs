@@ -7,6 +7,7 @@ use std::{
 };
 
 use burn::tensor::Element;
+use image::DynamicImage;
 use serde::Deserialize;
 
 pub mod intensity;
@@ -20,8 +21,6 @@ use crate::{
 	LoaderError,
 	Result,
 };
-
-pub type ImageType = image::RgbImage;
 
 /// A trait for a laser dataset item that defines the type the intensity is
 /// stored as.
@@ -95,16 +94,14 @@ pub trait LaserItem: LaserItemType {
 	/// [`LoaderError::ImageLoad`]:
 	///
 	/// - If the image could not be loaded at the provided path
-	fn load(&self) -> Result<ImageType> {
-		let image = image::open(self.get_image_path())
-			.map_err(|why| {
-				LoaderError::ImageLoad(format!(
-					"unable to load image at '{}': {}",
-					self.get_image_path(),
-					why
-				))
-			})?
-			.into();
+	fn load(&self) -> Result<DynamicImage> {
+		let image = image::open(self.get_image_path()).map_err(|why| {
+			LoaderError::ImageLoad(format!(
+				"unable to load image at '{}': {}",
+				self.get_image_path(),
+				why
+			))
+		})?;
 
 		Ok(image)
 	}
@@ -236,11 +233,12 @@ pub(crate) mod tests {
 		str::FromStr,
 	};
 
+	use image::RgbImage;
+
 	use super::{
 		BaseItem,
 		Element,
 		ImagePath,
-		ImageType,
 		Intensity,
 	};
 	use crate::{
@@ -268,10 +266,10 @@ pub(crate) mod tests {
 		dead_code,
 		reason = "Used to allow tests to return a type for chaining"
 	)]
-	struct SuccessfulImage(ImageType);
+	struct SuccessfulImage(RgbImage);
 
-	impl From<ImageType> for SuccessfulImage {
-		fn from(value: ImageType) -> Self {
+	impl From<RgbImage> for SuccessfulImage {
+		fn from(value: RgbImage) -> Self {
 			Self(value)
 		}
 	}

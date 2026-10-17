@@ -241,13 +241,13 @@ mod tests {
 		},
 	};
 
+	use image::RgbImage;
 	use serde::Deserialize;
 
 	use super::*;
 	use crate::item::{
 		BaseItem,
 		ImagePath,
-		ImageType,
 		Intensity,
 		LaserItemBase,
 		LaserItemType,
@@ -379,7 +379,7 @@ mod tests {
 	#[expect(dead_code, reason = "Dummy input for mapping")]
 	#[derive(Clone, Debug)]
 	struct LoadedItem {
-		image: ImageType,
+		image: RgbImage,
 		intensity: Intensity<IntensityValType>,
 	}
 
@@ -391,7 +391,7 @@ mod tests {
 			item: &DummyMapperInput,
 		) -> LoadedItem {
 			LoadedItem {
-				image: item.load().unwrap(),
+				image: item.load().unwrap().into(),
 				intensity: item.get_intensity(),
 			}
 		}
@@ -418,10 +418,10 @@ mod tests {
 		dead_code,
 		reason = "Used to allow tests to return a type for chaining"
 	)]
-	struct SuccessfulImage(ImageType);
+	struct SuccessfulImage(RgbImage);
 
-	impl From<ImageType> for SuccessfulImage {
-		fn from(value: ImageType) -> Self {
+	impl From<RgbImage> for SuccessfulImage {
+		fn from(value: RgbImage) -> Self {
 			Self(value)
 		}
 	}

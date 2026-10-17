@@ -1,6 +1,11 @@
 //! Random hue rotation transforms.
 
-use image::imageops::huerotate;
+use image::{
+	DynamicImage,
+	ImageBuffer,
+	Pixel,
+	imageops::huerotate,
+};
 use rand::{
 	RngExt as _,
 	rngs::StdRng,
@@ -9,7 +14,6 @@ use rand::{
 use super::{
 	AugmentationError,
 	ImageStep,
-	ImageType,
 };
 
 /// A validated half-open range of hue-rotation degrees.
@@ -148,11 +152,15 @@ impl Default for HueRotate {
 }
 
 impl ImageStep for HueRotate {
-	fn apply(
+	fn apply<P>(
 		&self,
-		image: ImageType,
+		image: ImageBuffer<P, Vec<P::Subpixel>>,
 		rng: &mut StdRng,
-	) -> ImageType {
+	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	where
+		P: Pixel + 'static,
+		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+	{
 		if self.range.min == self.range.max {
 			return image;
 		}
@@ -167,6 +175,7 @@ impl ImageStep for HueRotate {
 
 #[cfg(test)]
 mod tests {
+	use image::RgbImage;
 	use rand::SeedableRng as _;
 
 	use super::*;
@@ -175,7 +184,7 @@ mod tests {
 	fn default_hue_rotation_changes_color_and_preserves_dimensions() {
 		let hue_rotate = HueRotate::default();
 		let mut rng = StdRng::seed_from_u64(42);
-		let image = ImageType::from_pixel(10, 10, image::Rgb([255, 0, 0]));
+		let image = RgbImage::from_pixel(10, 10, image::Rgb([255, 0, 0]));
 		let result = hue_rotate.apply(image.clone(), &mut rng);
 		assert_eq!(result.dimensions(), image.dimensions());
 		assert_ne!(result, image);
@@ -183,7 +192,7 @@ mod tests {
 
 	#[test]
 	fn fixed_rotation_changes_color() {
-		let original = ImageType::from_pixel(1, 1, image::Rgb([255, 0, 0]));
+		let original = RgbImage::from_pixel(1, 1, image::Rgb([255, 0, 0]));
 		let mut rng = StdRng::seed_from_u64(42);
 		let range = HueRange::strict(90, 91).expect("the hue range is valid");
 		let rotated = HueRotate::new(range).apply(original.clone(), &mut rng);
@@ -228,7 +237,7 @@ mod tests {
 
 	#[test]
 	fn relaxed_equal_bounds_are_a_no_op() {
-		let original = ImageType::from_pixel(1, 1, image::Rgb([255, 0, 0]));
+		let original = RgbImage::from_pixel(1, 1, image::Rgb([255, 0, 0]));
 		let range = HueRange::relaxed(10, 10);
 		let result = HueRotate::new(range)
 			.apply(original.clone(), &mut StdRng::seed_from_u64(42));
@@ -243,7 +252,7 @@ mod tests {
 			HueRange::strict(-90, 90).expect("ordered range is valid");
 		let strict = HueRotate::new(strict_range);
 
-		let original = ImageType::from_pixel(1, 1, image::Rgb([255, 0, 0]));
+		let original = RgbImage::from_pixel(1, 1, image::Rgb([255, 0, 0]));
 		let relaxed_result =
 			relaxed.apply(original.clone(), &mut StdRng::seed_from_u64(42));
 		let strict_result =

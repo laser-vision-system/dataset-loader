@@ -1,8 +1,13 @@
 //! Random horizontal and vertical flips with validated probabilities.
 
-use image::imageops::{
-	flip_horizontal_in_place,
-	flip_vertical_in_place,
+use image::{
+	DynamicImage,
+	ImageBuffer,
+	Pixel,
+	imageops::{
+		flip_horizontal_in_place,
+		flip_vertical_in_place,
+	},
 };
 use rand::{
 	RngExt as _,
@@ -12,7 +17,6 @@ use rand::{
 use super::{
 	AugmentationError,
 	ImageStep,
-	ImageType,
 };
 
 /// A finite flip probability in the inclusive range `0.0..=1.0`.
@@ -114,11 +118,15 @@ impl Default for RandomHorizontalFlip {
 }
 
 impl ImageStep for RandomHorizontalFlip {
-	fn apply(
+	fn apply<P>(
 		&self,
-		mut image: ImageType,
+		mut image: ImageBuffer<P, Vec<P::Subpixel>>,
 		rng: &mut StdRng,
-	) -> ImageType {
+	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	where
+		P: Pixel + 'static,
+		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+	{
 		if rng.random_bool(self.probability.0) {
 			flip_horizontal_in_place(&mut image);
 		}
@@ -169,11 +177,15 @@ impl Default for RandomVerticalFlip {
 }
 
 impl ImageStep for RandomVerticalFlip {
-	fn apply(
+	fn apply<P>(
 		&self,
-		mut image: ImageType,
+		mut image: ImageBuffer<P, Vec<P::Subpixel>>,
 		rng: &mut StdRng,
-	) -> ImageType {
+	) -> ImageBuffer<P, Vec<P::Subpixel>>
+	where
+		P: Pixel + 'static,
+		ImageBuffer<P, Vec<P::Subpixel>>: Into<DynamicImage>,
+	{
 		if rng.random_bool(self.probability.0) {
 			flip_vertical_in_place(&mut image);
 		}
@@ -183,14 +195,17 @@ impl ImageStep for RandomVerticalFlip {
 
 #[cfg(test)]
 mod tests {
-	use image::Rgb;
+	use image::{
+		Rgb,
+		RgbImage,
+	};
 	use rand::SeedableRng as _;
 
 	use super::*;
 
 	#[test]
 	fn horizontal_flip_reverses_each_row() {
-		let original = ImageType::from_fn(2, 2, |x, y| {
+		let original = RgbImage::from_fn(2, 2, |x, y| {
 			Rgb([u8::from(x == 1), u8::from(y == 1), 0])
 		});
 		let mut rng = StdRng::seed_from_u64(42);
@@ -206,7 +221,7 @@ mod tests {
 
 	#[test]
 	fn vertical_flip_reverses_each_column() {
-		let original = ImageType::from_fn(2, 2, |x, y| {
+		let original = RgbImage::from_fn(2, 2, |x, y| {
 			Rgb([u8::from(x == 1), u8::from(y == 1), 0])
 		});
 		let mut rng = StdRng::seed_from_u64(42);
@@ -222,7 +237,7 @@ mod tests {
 
 	#[test]
 	fn zero_probability_preserves_pixels() {
-		let original = ImageType::from_fn(2, 2, |x, y| {
+		let original = RgbImage::from_fn(2, 2, |x, y| {
 			Rgb([u8::from(x == 1), u8::from(y == 1), 0])
 		});
 		let mut rng = StdRng::seed_from_u64(42);
