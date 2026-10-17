@@ -5,6 +5,7 @@ use image::{
 	GenericImageView,
 	ImageBuffer,
 	Pixel,
+	Primitive,
 	imageops::{
 		FilterType,
 		crop,
@@ -282,7 +283,12 @@ where
 			crop(&mut resized, left, top, width, height).to_image()
 		},
 		CanvasFit::BlackPad => {
-			let mut canvas = image.into();
+			let channels = vec![
+				P::Subpixel::DEFAULT_MIN_VALUE;
+				usize::from(P::CHANNEL_COUNT)
+			];
+			let black = *P::from_slice(&channels);
+			let mut canvas = ImageBuffer::from_pixel(width, height, black);
 			let left = width.saturating_sub(scaled_width) / 2;
 			let top = height.saturating_sub(scaled_height) / 2;
 			overlay(&mut canvas, &resized, i64::from(left), i64::from(top));
