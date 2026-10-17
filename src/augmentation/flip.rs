@@ -12,12 +12,19 @@ use rand::{
 	RngExt as _,
 	rngs::StdRng,
 };
+use typed_floats::tf64;
 
 use super::{
 	AugmentationError,
 	GenericImageBuffer,
 	ImageStep,
 };
+
+const HALF_PROBABILITY: tf64::PositiveFinite =
+	match tf64::PositiveFinite::new(0.5) {
+		Ok(probability) => probability,
+		Err(_) => panic!("0.5 is a positive finite value"),
+	};
 
 /// A finite flip probability in the inclusive range `0.0..=1.0`.
 ///
@@ -49,7 +56,7 @@ use super::{
 /// };
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct FlipProbability(f64);
+pub struct FlipProbability(tf64::PositiveFinite);
 
 impl FlipProbability {
 	/// Creates a validated flip probability.
@@ -61,17 +68,18 @@ impl FlipProbability {
 	///
 	/// Returns [`AugmentationError::InvalidFlipProbability`] when the value is
 	/// not finite or outside the inclusive range `0.0..=1.0`.
-	pub const fn new(value: f64) -> Result<Self, AugmentationError> {
-		if value.is_finite() && value >= 0.0 && value <= 1.0 {
-			Ok(Self(value))
-		} else {
-			Err(AugmentationError::InvalidFlipProbability)
+	pub const fn try_new(value: f64) -> Result<Self, AugmentationError> {
+		match tf64::PositiveFinite::new(value) {
+			Ok(probability) if probability.get() <= 1.0 => {
+				Ok(Self(probability))
+			},
+			_ => Err(AugmentationError::InvalidFlipProbability),
 		}
 	}
 
 	/// Returns the probability as a floating-point value.
 	pub const fn value(self) -> f64 {
-		self.0
+		self.0.get()
 	}
 }
 
@@ -112,7 +120,7 @@ impl Default for RandomHorizontalFlip {
 	/// Returns a transform with a 50% flip probability.
 	fn default() -> Self {
 		Self {
-			probability: FlipProbability(0.5),
+			probability: FlipProbability(HALF_PROBABILITY),
 		}
 	}
 }
@@ -127,7 +135,7 @@ impl ImageStep for RandomHorizontalFlip {
 		P: Pixel + 'static,
 		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
-		if rng.random_bool(self.probability.0) {
+		if rng.random_bool(self.probability.0.get()) {
 			flip_horizontal_in_place(&mut image);
 		}
 		image
@@ -171,7 +179,7 @@ impl Default for RandomVerticalFlip {
 	/// Returns a transform with a 50% flip probability.
 	fn default() -> Self {
 		Self {
-			probability: FlipProbability(0.5),
+			probability: FlipProbability(HALF_PROBABILITY),
 		}
 	}
 }
@@ -186,7 +194,7 @@ impl ImageStep for RandomVerticalFlip {
 		P: Pixel + 'static,
 		GenericImageBuffer<P>: Into<DynamicImage>,
 	{
-		if rng.random_bool(self.probability.0) {
+		if rng.random_bool(self.probability.0.get()) {
 			flip_vertical_in_place(&mut image);
 		}
 		image
@@ -209,7 +217,8 @@ mod tests {
 			Rgb([u8::from(x == 1), u8::from(y == 1), 0])
 		});
 		let mut rng = StdRng::seed_from_u64(42);
-		let prob = FlipProbability::new(1.0).expect("probability one is valid");
+		let prob =
+			FlipProbability::try_new(1.0).expect("probability one is valid");
 		let step = RandomHorizontalFlip::new(prob);
 
 		let image = step.apply(original, &mut rng);
@@ -225,7 +234,8 @@ mod tests {
 			Rgb([u8::from(x == 1), u8::from(y == 1), 0])
 		});
 		let mut rng = StdRng::seed_from_u64(42);
-		let prob = FlipProbability::new(1.0).expect("probability one is valid");
+		let prob =
+			FlipProbability::try_new(1.0).expect("probability one is valid");
 		let step = RandomVerticalFlip::new(prob);
 
 		let image = step.apply(original, &mut rng);
@@ -242,7 +252,7 @@ mod tests {
 		});
 		let mut rng = StdRng::seed_from_u64(42);
 		let prob =
-			FlipProbability::new(0.0).expect("probability zero is valid");
+			FlipProbability::try_new(0.0).expect("probability zero is valid");
 		let image =
 			RandomHorizontalFlip::new(prob).apply(original.clone(), &mut rng);
 		assert_eq!(image, original);
@@ -252,7 +262,7 @@ mod tests {
 	fn flip_probability_rejects_out_of_range_and_non_finite_values() {
 		for probability in [-0.1, 1.1, f64::INFINITY, f64::NAN] {
 			assert!(matches!(
-				FlipProbability::new(probability),
+				FlipProbability::try_new(probability),
 				Err(AugmentationError::InvalidFlipProbability)
 			));
 		}
@@ -260,7 +270,7 @@ mod tests {
 
 	#[test]
 	fn probability_validation_is_const_evaluable() {
-		const VALID: FlipProbability = match FlipProbability::new(0.5) {
+		const VALID: FlipProbability = match FlipProbability::try_new(0.5) {
 			Ok(probability) => probability,
 			Err(_) => panic!("invalid test probability"),
 		};

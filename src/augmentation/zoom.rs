@@ -1,5 +1,7 @@
 //! Zoom-in and zoom-out transforms with validated scale ranges.
 
+// IDEA: Combine ZoomIn and ZoomOut.
+
 use image::{
 	DynamicImage,
 	GenericImageView,
@@ -17,6 +19,7 @@ use rand::{
 	RngExt as _,
 	rngs::StdRng,
 };
+use typed_floats::tf32;
 
 use super::{
 	AugmentationError,
@@ -31,17 +34,17 @@ enum CanvasFit {
 	BlackPad,
 }
 
-/// Inclusive finite range of zoom-in scale factors, each at least one.
+/// Inclusive range of zoom factors/divisors, each finite and at least one.
 ///
 /// # Examples
 ///
 /// ```
 /// # use dataset_loader::augmentation::{
 /// #     AugmentationError,
-/// #     zoom::ZoomInFactors,
+/// #     zoom::ZoomRange,
 /// # };
 /// #
-/// const FACTORS: ZoomInFactors = match ZoomInFactors::new(1.0, 3.0) {
+/// const FACTORS: ZoomRange = match ZoomRange::ordered(1.0, 3.0) {
 /// 	Ok(factors) => factors,
 /// 	Err(_) => panic!("invalid constant zoom-in range"),
 /// };
@@ -49,37 +52,123 @@ enum CanvasFit {
 /// assert_eq!(FACTORS.bounds(), (1.0, 3.0));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ZoomInFactors {
-	min: f32,
-	max: f32,
+pub struct ZoomRange {
+	min: tf32::PositiveFinite,
+	max: tf32::PositiveFinite,
 }
 
-impl ZoomInFactors {
-	/// Creates a range for probablistic zoom in operations.
+impl ZoomRange {
+	/// Creates a strictly increasing range of zoom factors.
 	///
-	/// This `const fn` can be evaluated during compilation.
+	/// This function is `const` and can validate during compilation.
 	///
 	/// # Errors
 	///
-	/// Returns [`AugmentationError::InvalidZoomInFactors`] unless both bounds
-	/// are finite, `min >= 1.0`, and `min <= max`.
-	pub const fn new(
+	/// Returns [`AugmentationError::InvalidZoomRange`] if either value is
+	/// non-finite, less than one, or if `min >= max`.
+	pub const fn try_new(
 		min: f32,
 		max: f32,
 	) -> Result<Self, AugmentationError> {
-		if min.is_finite() && max.is_finite() && min >= 1.0 && max >= min {
+		Self::strict(min, max)
+	}
+
+	/// Orders the supplied factors and creates a range.
+	///
+	/// Equal values represent a fixed zoom factor.
+	///
+	/// This function is `const` and can validate during compilation.
+	///
+	/// # Errors
+	///
+	/// Returns [`AugmentationError::InvalidZoomRange`] if either value is
+	/// non-finite or less than one.
+	pub const fn relaxed(
+		first: f32,
+		second: f32,
+	) -> Result<Self, AugmentationError> {
+		// Done this way to allow for const.
+		let Ok(first) = tf32::PositiveFinite::new(first) else {
+			return Err(AugmentationError::InvalidZoomRange);
+		};
+		let Ok(second) = tf32::PositiveFinite::new(second) else {
+			return Err(AugmentationError::InvalidZoomRange);
+		};
+		if first.get() < 1.0 || second.get() < 1.0 {
+			return Err(AugmentationError::InvalidZoomRange);
+		}
+		let (min, max) = if first.get() <= second.get() {
+			(first, second)
+		} else {
+			(second, first)
+		};
+		Ok(Self {
+			min,
+			max,
+		})
+	}
+
+	/// Creates an ordered range while allowing equal bounds.
+	///
+	/// This function is `const` and can validate during compilation.
+	///
+	/// # Errors
+	///
+	/// Returns [`AugmentationError::InvalidZoomRange`] when a value is
+	/// non-finite, below one, or `min > max`.
+	pub const fn ordered(
+		min: f32,
+		max: f32,
+	) -> Result<Self, AugmentationError> {
+		// Done this way to allow for const.
+		let Ok(min) = tf32::PositiveFinite::new(min) else {
+			return Err(AugmentationError::InvalidZoomRange);
+		};
+		let Ok(max) = tf32::PositiveFinite::new(max) else {
+			return Err(AugmentationError::InvalidZoomRange);
+		};
+		if min.get() >= 1.0 && max.get() >= min.get() {
 			Ok(Self {
 				min,
 				max,
 			})
 		} else {
-			Err(AugmentationError::InvalidZoomInFactors)
+			Err(AugmentationError::InvalidZoomRange)
+		}
+	}
+
+	/// Creates a strictly increasing range of zoom factors.
+	///
+	/// This function is `const` and can validate during compilation.
+	///
+	/// # Errors
+	///
+	/// Returns [`AugmentationError::InvalidZoomRange`] when a value is
+	/// non-finite, below one, or `min >= max`.
+	pub const fn strict(
+		min: f32,
+		max: f32,
+	) -> Result<Self, AugmentationError> {
+		// Done this way to allow for const.
+		let Ok(min) = tf32::PositiveFinite::new(min) else {
+			return Err(AugmentationError::InvalidZoomRange);
+		};
+		let Ok(max) = tf32::PositiveFinite::new(max) else {
+			return Err(AugmentationError::InvalidZoomRange);
+		};
+		if min.get() >= 1.0 && min.get() < max.get() {
+			Ok(Self {
+				min,
+				max,
+			})
+		} else {
+			Err(AugmentationError::InvalidZoomRange)
 		}
 	}
 
 	/// Returns the inclusive minimum and maximum factors.
 	pub const fn bounds(self) -> (f32, f32) {
-		(self.min, self.max)
+		(self.min.get(), self.max.get())
 	}
 
 	/// Samples an inclusive factor from this range.
@@ -87,65 +176,7 @@ impl ZoomInFactors {
 		self,
 		rng: &mut StdRng,
 	) -> f32 {
-		rng.random_range(self.min..=self.max)
-	}
-}
-
-/// Inclusive finite range of zoom-out divisors, each at least one.
-///
-/// # Examples
-///
-/// ```
-/// # use dataset_loader::augmentation::{
-/// #     AugmentationError,
-/// #     zoom::ZoomOutDivisors,
-/// # };
-/// #
-/// const DIVISORS: ZoomOutDivisors = match ZoomOutDivisors::new(1.0, 3.0) {
-/// 	Ok(divisors) => divisors,
-/// 	Err(_) => panic!("invalid constant zoom-out range"),
-/// };
-///
-/// assert_eq!(DIVISORS.bounds(), (1.0, 3.0));
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ZoomOutDivisors {
-	min: f32,
-	max: f32,
-}
-
-impl ZoomOutDivisors {
-	/// Creates a range for probablistic zoom out operations.
-	///
-	/// # Errors
-	///
-	/// Returns [`AugmentationError::InvalidZoomOutDivisors`] unless both bounds
-	/// are finite, `min >= 1.0`, and `min <= max`.
-	pub const fn new(
-		min: f32,
-		max: f32,
-	) -> Result<Self, AugmentationError> {
-		if min.is_finite() && max.is_finite() && min >= 1.0 && max >= min {
-			Ok(Self {
-				min,
-				max,
-			})
-		} else {
-			Err(AugmentationError::InvalidZoomOutDivisors)
-		}
-	}
-
-	/// Returns the inclusive minimum and maximum divisors.
-	pub const fn bounds(self) -> (f32, f32) {
-		(self.min, self.max)
-	}
-
-	/// Samples an inclusive divisor from this range.
-	fn sample(
-		self,
-		rng: &mut StdRng,
-	) -> f32 {
-		rng.random_range(self.min..=self.max)
+		rng.random_range(self.min.get()..=self.max.get())
 	}
 }
 
@@ -158,23 +189,22 @@ impl ZoomOutDivisors {
 /// ```
 /// # use dataset_loader::augmentation::zoom::{
 /// # 	ZoomIn,
-/// # 	ZoomInFactors,
+/// # 	ZoomRange,
 /// # };
 /// #
-/// let factors =
-/// 	ZoomInFactors::new(1.5, 2.0).expect("the factor range is valid");
+/// let factors = ZoomRange::new(1.5, 2.0).expect("the factor range is valid");
 /// let _zoom = ZoomIn::new(factors);
 /// ```
 #[derive(Clone, Debug)]
 pub struct ZoomIn {
-	factors: ZoomInFactors,
+	factors: ZoomRange,
 }
 
 impl ZoomIn {
 	/// Creates a zoom-in transform with a validated factor range.
 	///
 	/// This constructor is infallible and `const`.
-	pub const fn new(factors: ZoomInFactors) -> Self {
+	pub const fn new(factors: ZoomRange) -> Self {
 		Self {
 			factors,
 		}
@@ -208,23 +238,23 @@ impl ImageStep for ZoomIn {
 /// ```
 /// # use dataset_loader::augmentation::zoom::{
 /// # 	ZoomOut,
-/// # 	ZoomOutDivisors,
+/// # 	ZoomRange,
 /// # };
 /// #
 /// let divisors =
-/// 	ZoomOutDivisors::new(1.5, 2.0).expect("the divisor range is valid");
+/// 	ZoomRange::new(1.5, 2.0).expect("the divisor range is valid");
 /// let _zoom = ZoomOut::new(divisors);
 /// ```
 #[derive(Clone, Debug)]
 pub struct ZoomOut {
-	divisors: ZoomOutDivisors,
+	divisors: ZoomRange,
 }
 
 impl ZoomOut {
 	/// Creates a zoom-out transform with a validated divisor range.
 	///
 	/// This constructor is infallible and `const`.
-	pub const fn new(divisors: ZoomOutDivisors) -> Self {
+	pub const fn new(divisors: ZoomRange) -> Self {
 		Self {
 			divisors,
 		}
@@ -325,7 +355,7 @@ mod tests {
 	fn zoom_in_preserves_dimensions() {
 		let image = gradient_image(4, 5);
 		let mut rng = StdRng::seed_from_u64(42);
-		let factors = ZoomInFactors::new(2.0, 2.0)
+		let factors = ZoomRange::try_new(2.0, 2.0)
 			.expect("the zoom-in factor range is valid");
 		let result = ZoomIn::new(factors).apply(image, &mut rng);
 		assert_eq!(result.dimensions(), (4, 5));
@@ -335,7 +365,7 @@ mod tests {
 	fn zoom_out_preserves_dimensions() {
 		let image = gradient_image(12, 10);
 		let mut rng = StdRng::seed_from_u64(42);
-		let divisors = ZoomOutDivisors::new(2.0, 2.0)
+		let divisors = ZoomRange::try_new(2.0, 2.0)
 			.expect("the zoom-out divisor range is valid");
 		let result = ZoomOut::new(divisors).apply(image, &mut rng);
 		assert_eq!(result.dimensions(), (12, 10));
@@ -345,7 +375,7 @@ mod tests {
 	fn zoom_in_changes_pixels_when_scaled_up() {
 		let image = gradient_image(8, 8);
 		let mut rng = StdRng::seed_from_u64(42);
-		let factors = ZoomInFactors::new(2.0, 2.0)
+		let factors = ZoomRange::try_new(2.0, 2.0)
 			.expect("the zoom-in factor range is valid");
 		let result = ZoomIn::new(factors).apply(image.clone(), &mut rng);
 		assert_ne!(result, image);
@@ -355,7 +385,7 @@ mod tests {
 	fn zoom_out_centers_resized_content() {
 		let image = RgbImage::from_pixel(8, 8, Rgb([12, 34, 56]));
 		let mut rng = StdRng::seed_from_u64(42);
-		let divisors = ZoomOutDivisors::new(2.0, 2.0)
+		let divisors = ZoomRange::try_new(2.0, 2.0)
 			.expect("the zoom-out divisor range is valid");
 		let result = ZoomOut::new(divisors).apply(image, &mut rng);
 		assert_eq!(result.get_pixel(3, 3).0, [12, 34, 56]);
@@ -365,7 +395,7 @@ mod tests {
 	fn zoom_out_fills_padding_with_black() {
 		let image = RgbImage::from_pixel(8, 8, Rgb([12, 34, 56]));
 		let mut rng = StdRng::seed_from_u64(42);
-		let divisors = ZoomOutDivisors::new(2.0, 2.0)
+		let divisors = ZoomRange::try_new(2.0, 2.0)
 			.expect("the zoom-out divisor range is valid");
 		let result = ZoomOut::new(divisors).apply(image, &mut rng);
 		assert_eq!(result.get_pixel(0, 0).0, [0, 0, 0]);
@@ -376,7 +406,7 @@ mod tests {
 		let image = gradient_image(3, 3);
 		let mut rng = StdRng::seed_from_u64(42);
 		let factors =
-			ZoomInFactors::new(1.0, 1.0).expect("a factor of one is valid");
+			ZoomRange::try_new(1.0, 1.0).expect("a factor of one is valid");
 		let result = ZoomIn::new(factors).apply(image.clone(), &mut rng);
 		assert_eq!(result, image);
 	}
@@ -386,7 +416,7 @@ mod tests {
 		let image = gradient_image(3, 3);
 		let mut rng = StdRng::seed_from_u64(42);
 		let divisors =
-			ZoomOutDivisors::new(1.0, 1.0).expect("a divisor of one is valid");
+			ZoomRange::try_new(1.0, 1.0).expect("a divisor of one is valid");
 		let result = ZoomOut::new(divisors).apply(image.clone(), &mut rng);
 		assert_eq!(result, image);
 	}
@@ -394,42 +424,64 @@ mod tests {
 	#[test]
 	fn zoom_in_range_rejects_values_below_one() {
 		assert_eq!(
-			ZoomInFactors::new(0.9, 1.2).unwrap_err(),
-			AugmentationError::InvalidZoomInFactors
+			ZoomRange::try_new(0.9, 1.2).unwrap_err(),
+			AugmentationError::InvalidZoomRange
 		);
 	}
 
 	#[test]
 	fn zoom_in_range_rejects_reversed_bounds() {
 		assert_eq!(
-			ZoomInFactors::new(2.0, 1.0).unwrap_err(),
-			AugmentationError::InvalidZoomInFactors
+			ZoomRange::try_new(2.0, 1.0).unwrap_err(),
+			AugmentationError::InvalidZoomRange
 		);
 	}
 
 	#[test]
 	fn zoom_out_range_rejects_values_below_one() {
 		assert_eq!(
-			ZoomOutDivisors::new(0.9, 2.0).unwrap_err(),
-			AugmentationError::InvalidZoomOutDivisors
+			ZoomRange::try_new(0.9, 2.0).unwrap_err(),
+			AugmentationError::InvalidZoomRange
 		);
 	}
 
 	#[test]
 	fn zoom_out_range_rejects_non_finite_values() {
 		assert_eq!(
-			ZoomOutDivisors::new(1.0, f32::INFINITY).unwrap_err(),
-			AugmentationError::InvalidZoomOutDivisors
+			ZoomRange::try_new(1.0, f32::INFINITY).unwrap_err(),
+			AugmentationError::InvalidZoomRange
 		);
 	}
 
 	#[test]
-	fn factor_ranges_are_const_evaluable() {
-		const FACTORS: ZoomInFactors = match ZoomInFactors::new(1.0, 2.0) {
+	fn relaxed_zoom_range_sorts_bounds() {
+		assert_eq!(ZoomRange::relaxed(3.0, 1.0).unwrap().bounds(), (1.0, 3.0));
+	}
+
+	#[test]
+	fn ordered_zoom_range_allows_equal_bounds() {
+		assert_eq!(ZoomRange::ordered(2.0, 2.0).unwrap().bounds(), (2.0, 2.0));
+	}
+
+	#[test]
+	fn strict_zoom_range_rejects_equal_or_reversed_bounds() {
+		assert_eq!(
+			ZoomRange::strict(2.0, 2.0).unwrap_err(),
+			AugmentationError::InvalidZoomRange
+		);
+		assert_eq!(
+			ZoomRange::strict(3.0, 2.0).unwrap_err(),
+			AugmentationError::InvalidZoomRange
+		);
+	}
+
+	#[test]
+	fn zoom_range_is_const_evaluable() {
+		const FACTORS: ZoomRange = match ZoomRange::try_new(1.0, 2.0) {
 			Ok(factors) => factors,
 			Err(_) => panic!("invalid test factors"),
 		};
-		const DIVISORS: ZoomOutDivisors = match ZoomOutDivisors::new(1.0, 2.0) {
+		const DIVISORS: ZoomRange = match ZoomRange::try_new(1.0, 2.0) {
 			Ok(divisors) => divisors,
 			Err(_) => panic!("invalid test divisors"),
 		};

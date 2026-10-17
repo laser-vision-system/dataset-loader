@@ -44,6 +44,21 @@ pub struct HueRange {
 }
 
 impl HueRange {
+	/// Creates a strict hue rotation range in the half-open degree range
+	/// `min..max`.
+	///
+	/// This function is `const` and can validate during compilation.
+	///
+	/// # Errors
+	///
+	/// Returns [`AugmentationError::InvalidHueRange`] when `min >= max`.
+	pub const fn try_new(
+		min: i32,
+		max: i32,
+	) -> Result<Self, AugmentationError> {
+		Self::strict(min, max)
+	}
+
 	/// Creates a range by ordering the supplied values.
 	///
 	/// The minimum and maximum are selected from the two input bounds.
