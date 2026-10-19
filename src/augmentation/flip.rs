@@ -109,8 +109,9 @@ pub struct RandomHorizontalFlip {
 impl RandomHorizontalFlip {
 	/// Creates a horizontal flip with probability in `0.0..=1.0`.
 	///
-	/// The probability must first be validated with [`FlipProbability::new`].
-	/// This constructor is infallible and `const`.
+	/// The probability must first be validated with
+	/// [`FlipProbability::try_new`]. This constructor is infallible and
+	/// `const`.
 	pub const fn new(probability: FlipProbability) -> Self {
 		Self {
 			probability,
@@ -168,8 +169,9 @@ pub struct RandomVerticalFlip {
 impl RandomVerticalFlip {
 	/// Creates a vertical flip with probability in `0.0..=1.0`.
 	///
-	/// The probability must first be validated with [`FlipProbability::new`].
-	/// This constructor is infallible and `const`.
+	/// The probability must first be validated with
+	/// [`FlipProbability::try_new`]. This constructor is infallible and
+	/// `const`.
 	pub const fn new(probability: FlipProbability) -> Self {
 		Self {
 			probability,
