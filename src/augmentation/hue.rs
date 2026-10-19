@@ -19,7 +19,7 @@ use super::{
 /// A validated half-open range of hue-rotation degrees.
 ///
 /// The constructors are `const`. To require a valid range during compilation,
-/// match the [`std::result::Result`] in a `const` initializer; merely storing
+/// match the [`std::result::Result`] in a `const` initialiser; merely storing
 /// a result constant does not require its `Ok` variant.
 ///
 /// # Examples

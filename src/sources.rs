@@ -1,4 +1,4 @@
-//! Structs for the different datasets we have available.
+//! Source-specific item types and loaders for the available laser datasets.
 
 // Synthetic
 pub mod synthetic_1;

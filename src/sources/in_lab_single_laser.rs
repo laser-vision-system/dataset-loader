@@ -1,3 +1,5 @@
+//! Types and loader for the in-lab single-laser dataset.
+
 use std::{
 	fmt::Display,
 	path::Path,
@@ -19,8 +21,10 @@ use crate::{
 	},
 };
 
+/// Floating-point representation used for laser intensity in this source.
 pub type IntensityValType = f32;
 
+/// A mapped dataset whose input items are [`InLabSingleLaserItem`]s.
 pub type InLabSingleLaserDataset<M, MO> =
 	LaserDataset<M, InLabSingleLaserItem, MO>;
 
@@ -46,21 +50,21 @@ pub struct InLabSingleLaserItem {
 }
 
 impl InLabSingleLaserItem {
-	/// Get the `saturation` value for the current item.
+	/// Returns the `saturation` value for this item.
 	///
 	/// Will be either 0, 64, or 128.
 	pub fn get_saturation(&self) -> u8 {
 		self.saturation
 	}
 
-	/// Get the `gamma` value for the current item.
+	/// Returns the `gamma` value for this item.
 	///
 	/// Will be between 75 and 400, with a step size of 65.
 	pub fn get_gamma(&self) -> u16 {
 		self.gamma
 	}
 
-	/// Get the `exposure_absolute` value for the current item.
+	/// Returns the `exposure_absolute` value for this item.
 	///
 	/// Will be between 5 and 2005, with a step size of 100.
 	pub fn get_exposure_absolute(&self) -> u16 {
@@ -107,11 +111,12 @@ impl Display for InLabSingleLaserItem {
 	}
 }
 
-/// Create the `in_lab_single_laser` dataset loader.
+/// Loads the `in_lab_single_laser` dataset through a mapper.
 ///
 /// # Errors
 ///
-/// If the dataset fails to load.
+/// Returns a loading error if `index.csv` cannot be read, a row cannot be
+/// deserialised, or an image path cannot be resolved.
 pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,

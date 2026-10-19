@@ -1,23 +1,14 @@
 //! Blur augmentations and shared validation for blur radii.
 
+/// Gaussian blurring with enhanced control.
 mod advanced_gaussian;
+/// 3x3 convolution filter.
 mod box_filter;
+/// Faster gaussian blurring.
 mod fast_gaussian;
+/// Normal gaussian blurring.
 mod gaussian;
 
-pub use advanced_gaussian::GaussianAdvanced;
-pub use box_filter::{
-	BoxFilter,
-	BoxFilterKernel,
-};
-pub use fast_gaussian::{
-	GaussianFast,
-	RandomGaussianFast,
-};
-pub use gaussian::{
-	Gaussian,
-	RandomGaussian,
-};
 use image::{
 	DynamicImage,
 	Pixel,
@@ -27,6 +18,21 @@ use rand::{
 	rngs::StdRng,
 };
 
+pub use self::{
+	advanced_gaussian::GaussianAdvanced,
+	box_filter::{
+		BoxFilter,
+		BoxFilterKernel,
+	},
+	fast_gaussian::{
+		GaussianFast,
+		RandomGaussianFast,
+	},
+	gaussian::{
+		Gaussian,
+		RandomGaussian,
+	},
+};
 use super::{
 	AugmentationError,
 	GenericImageBuffer,
@@ -58,7 +64,7 @@ impl BlurSigma {
 	/// Validates a finite, non-negative blur radius.
 	///
 	/// This `const fn` can be evaluated during compilation. Matching its result
-	/// in a constant initializer turns invalid input into a compile-time error.
+	/// in a constant initialiser turns invalid input into a compile-time error.
 	///
 	/// # Errors
 	///
@@ -104,7 +110,7 @@ pub struct BlurSigmaRange {
 impl BlurSigmaRange {
 	/// Validates a half-open range of finite, non-negative radii.
 	///
-	/// Requires `min < max`. Matching the result in a constant initializer
+	/// Requires `min < max`. Matching the result in a constant initialiser
 	/// makes invalid constant input a compile-time error.
 	///
 	/// # Errors
