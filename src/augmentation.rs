@@ -36,7 +36,7 @@
 //! # };
 //! # use rand::SeedableRng as _;
 //! #
-//! const PROBABILITY: FlipProbability = match FlipProbability::new(0.5) {
+//! const PROBABILITY: FlipProbability = match FlipProbability::try_new(0.5) {
 //! 	Ok(probability) => probability,
 //! 	Err(_) => panic!("invalid constant flip probability"),
 //! };
@@ -47,7 +47,7 @@
 //! 		RandomVerticalFlip::new(PROBABILITY),
 //! 	);
 //!
-//! const HUE_RANGE: HueRange = match HueRange::strict(-180, 180) {
+//! const HUE_RANGE: HueRange = match HueRange::try_new(-180, 180) {
 //! 	Ok(range) => range,
 //! 	Err(_) => panic!("invalid constant hue range"),
 //! };
@@ -81,12 +81,9 @@ pub enum AugmentationError {
 	/// A flip probability is non-finite or outside `0.0..=1.0`.
 	#[error("flip probability must be finite and in 0.0..=1.0")]
 	InvalidFlipProbability,
-	/// Zoom-in bounds are non-finite, reversed, or less than one.
-	#[error("zoom-in factors must be finite, ordered, and at least 1.0")]
-	InvalidZoomInFactors,
-	/// Zoom-out bounds are non-finite, reversed, or less than one.
-	#[error("zoom-out divisors must be finite, ordered, and at least 1.0")]
-	InvalidZoomOutDivisors,
+	/// Zoom bounds are non-finite, reversed, or less than one.
+	#[error("zoom bounds must be finite, ordered, and at least 1.0")]
+	InvalidZoomRange,
 	/// A blur sigma is negative or non-finite.
 	#[error("blur sigma must be finite and non-negative")]
 	InvalidBlurSigma,

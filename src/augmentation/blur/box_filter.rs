@@ -4,6 +4,7 @@ use image::{
 	imageops::filter3x3,
 };
 use rand::rngs::StdRng;
+use typed_floats::tf32;
 
 use super::super::{
 	AugmentationError,
@@ -21,7 +22,7 @@ use super::super::{
 /// # 	blur::BoxFilterKernel,
 /// # };
 /// #
-/// const KERNEL: BoxFilterKernel = match BoxFilterKernel::new([1.0; 9]) {
+/// const KERNEL: BoxFilterKernel = match BoxFilterKernel::try_new([1.0; 9]) {
 /// 	Ok(kernel) => kernel,
 /// 	Err(_) => panic!("invalid constant box-filter kernel"),
 /// };
@@ -37,11 +38,13 @@ impl BoxFilterKernel {
 	/// Zero-sum kernels are allowed; the image crate applies an inverse sum of
 	/// one for them.
 	///
+	/// This function is `const` and can validate during compilation.
+	///
 	/// # Errors
 	///
 	/// Returns [`AugmentationError::InvalidBoxFilterKernel`] if any coefficient
 	/// is NaN or infinite.
-	pub const fn new(weights: [f32; 9]) -> Result<Self, AugmentationError> {
+	pub const fn try_new(weights: [f32; 9]) -> Result<Self, AugmentationError> {
 		let [
 			top_left,
 			top_center,
@@ -53,15 +56,15 @@ impl BoxFilterKernel {
 			bottom_center,
 			bottom_right,
 		] = weights;
-		if top_left.is_finite()
-			&& top_center.is_finite()
-			&& top_right.is_finite()
-			&& middle_left.is_finite()
-			&& center.is_finite()
-			&& middle_right.is_finite()
-			&& bottom_left.is_finite()
-			&& bottom_center.is_finite()
-			&& bottom_right.is_finite()
+		if tf32::NonNaNFinite::new(top_left).is_ok()
+			&& tf32::NonNaNFinite::new(top_center).is_ok()
+			&& tf32::NonNaNFinite::new(top_right).is_ok()
+			&& tf32::NonNaNFinite::new(middle_left).is_ok()
+			&& tf32::NonNaNFinite::new(center).is_ok()
+			&& tf32::NonNaNFinite::new(middle_right).is_ok()
+			&& tf32::NonNaNFinite::new(bottom_left).is_ok()
+			&& tf32::NonNaNFinite::new(bottom_center).is_ok()
+			&& tf32::NonNaNFinite::new(bottom_right).is_ok()
 		{
 			Ok(Self(weights))
 		} else {
@@ -86,7 +89,7 @@ impl BoxFilterKernel {
 /// # 	BoxFilterKernel,
 /// # };
 /// #
-/// const KERNEL: BoxFilterKernel = match BoxFilterKernel::new([1.0; 9]) {
+/// const KERNEL: BoxFilterKernel = match BoxFilterKernel::try_new([1.0; 9]) {
 /// 	Ok(kernel) => kernel,
 /// 	Err(_) => panic!("invalid constant box-filter kernel"),
 /// };
@@ -187,7 +190,7 @@ mod tests {
 	#[test]
 	fn kernel_rejects_non_finite_weights() {
 		assert!(matches!(
-			BoxFilterKernel::new([
+			BoxFilterKernel::try_new([
 				1.0,
 				1.0,
 				f32::NAN,
@@ -204,7 +207,8 @@ mod tests {
 
 	#[test]
 	fn kernel_validation_is_const_evaluable() {
-		const KERNEL: BoxFilterKernel = match BoxFilterKernel::new([1.0; 9]) {
+		const KERNEL: BoxFilterKernel = match BoxFilterKernel::try_new([1.0; 9])
+		{
 			Ok(kernel) => kernel,
 			Err(_) => panic!("invalid test kernel"),
 		};

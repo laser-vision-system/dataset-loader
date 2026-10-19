@@ -1,10 +1,39 @@
 //! Weighted train, validation, and test dataset partitions.
 
-use std::num::NonZeroU8;
-
 use burn::data::dataset::Dataset;
+// Publically re-export the types used for split weight.
+pub use typed_floats::tf32::{
+	PositiveFinite,
+	StrictlyPositiveFinite,
+};
 
-/// Identifies the intended use of a dataset subdivision.
+#[expect(
+	clippy::cast_precision_loss,
+	clippy::cast_possible_truncation,
+	clippy::cast_sign_loss,
+	reason = "Weighted allocation uses floating-point ratios and clamps before converting to a dataset length"
+)]
+fn weighted_split_len(
+	dataset_len: usize,
+	weight: f32,
+	total_weight: f32,
+	allocated_len: usize,
+	reserve_training_item: bool,
+) -> usize {
+	let available_len = dataset_len
+		.saturating_sub(allocated_len)
+		.saturating_sub(usize::from(reserve_training_item));
+	let requested_len = (dataset_len as f64 * f64::from(weight)
+		/ f64::from(total_weight))
+	.ceil();
+	if requested_len >= available_len as f64 {
+		available_len
+	} else {
+		requested_len as usize
+	}
+}
+
+/// A subdivision of the dataset for use in specific scenarios.
 #[derive(Clone, Copy, Debug)]
 pub enum SplitType {
 	/// Model fitting data.
@@ -46,98 +75,122 @@ where
 		split: SplitType,
 	) -> Self::Output;
 
-	/// Splits the dataset into training, optional validation, and optional test
-	/// portions using relative weights.
+	/// Splits this dataset into train/validate/test partitions.
 	///
-	/// The operation consumes the source dataset. Test items are assigned
-	/// first, followed by validation items; all remaining items are
-	/// training data. Each requested non-training size is rounded up, but
-	/// is capped so at least one item remains for training when the dataset
-	/// is non-empty. Requested validation or test splits may therefore be
-	/// empty for small datasets.
+	/// The operation consumes the source dataset.
 	///
-	/// # Examples
+	/// The weights are relative, not percentages. Test items are selected
+	/// first, then validation items; the remaining items form the training
+	/// partition when the training weight is non-zero.
 	///
-	/// ```
-	/// use dataset_loader::splitting::{Split, SplitType, Splitable};
-	/// use std::num::NonZeroU8;
-	/// # use burn::data::dataset::Dataset;
-	/// # struct Numbers(Vec<u8>);
-	/// # struct NumberSplit(usize, SplitType);
-	/// # impl Dataset<u8> for Numbers {
-	/// #     fn get(&self, index: usize) -> Option<u8> { self.0.get(index).copied() }
-	/// #     fn len(&self) -> usize { self.0.len() }
-	/// # }
-	/// # impl Split for NumberSplit { fn split_type(&self) -> SplitType { self.1 } }
-	/// # impl Splitable<u8> for Numbers {
-	/// #     type DatasetType = Self;
-	/// #     type Output = NumberSplit;
-	/// #     fn get_dataset(&self) -> &Self { self }
-	/// #     fn create_split(&self, start: usize, end: usize, kind: SplitType) -> NumberSplit {
-	/// #         NumberSplit(end - start, kind)
-	/// #     }
-	/// # }
-	/// let splits = Numbers((0..10).collect()).into_split(NonZeroU8::new(8).unwrap(), 1, 1);
-	/// assert_eq!(splits.train.0, 8);
-	/// assert_eq!(splits.validate.unwrap().0, 1);
-	/// assert_eq!(splits.test.unwrap().0, 1);
-	/// ```
-	///
-	/// # Panics
-	///
-	/// This method does not panic when splitting an empty or small dataset.
-	#[expect(
-		clippy::cast_precision_loss,
-		clippy::cast_possible_truncation,
-		reason = "Assume the dataset will never get large enough for this to matter"
-	)]
-	#[expect(
-		clippy::cast_sign_loss,
-		reason = "The values are checked to be positive before casting"
-	)]
+	/// Requested test and validation lengths are rounded up and capped to the
+	/// items still available. When the training weight is non-zero, one item is
+	/// reserved for training whenever the source is non-empty. A partition with
+	/// a zero weight is `None`; a non-zero weight can still produce an empty
+	/// partition when the dataset is too small.
 	fn into_split(
 		self,
-		train_weight: NonZeroU8,
-		validate_weight: u8,
-		test_weight: u8,
+		weights: SplitWeights,
 	) -> SplitOutput<Self::Output> {
-		let sum = u16::from(u8::from(train_weight))
-			+ u16::from(validate_weight)
-			+ u16::from(test_weight);
-		let max = self.get_dataset().len();
-		let ratio = max as f64 / f64::from(sum);
+		let total_weight = weights.sum.get();
+		let dataset_len = self.get_dataset().len();
 
-		let mut start = 0;
-		let mut end = 0;
+		let test_len = weighted_split_len(
+			dataset_len,
+			weights.test_weight.get(),
+			total_weight,
+			0,
+			weights.train_weight.get() > 0.0,
+		);
+		let validate_len = weighted_split_len(
+			dataset_len,
+			weights.validate_weight.get(),
+			total_weight,
+			test_len,
+			weights.train_weight.get() > 0.0,
+		);
 
-		let test = (test_weight > 0).then(|| {
-			end = ((f64::from(test_weight) * ratio).ceil() as usize)
-				.min(max.saturating_sub(1));
-			let split = Self::create_split(&self, start, end, SplitType::Test);
-			start = end;
-			split
+		let test_end = test_len;
+		let validate_end = test_end + validate_len;
+
+		let test = (weights.test_weight.get() > 0.0)
+			.then(|| Self::create_split(&self, 0, test_end, SplitType::Test));
+		let validate = (weights.validate_weight.get() > 0.0).then(|| {
+			Self::create_split(
+				&self,
+				test_end,
+				validate_end,
+				SplitType::Validate,
+			)
 		});
-
-		let validate = (validate_weight > 0).then(|| {
-			end += ((f64::from(validate_weight) * ratio).ceil() as usize)
-				.min(max.saturating_sub(end).saturating_sub(1));
-			let split =
-				Self::create_split(&self, start, end, SplitType::Validate);
-			start = end;
-			split
+		let train = (weights.train_weight.get() > 0.0).then(|| {
+			Self::create_split(
+				&self,
+				validate_end,
+				dataset_len,
+				SplitType::Train,
+			)
 		});
-
-		end = max;
-
-		let train = Self::create_split(&self, start, end, SplitType::Train);
-
 		SplitOutput::new(train, validate, test)
 	}
 }
 
-/// The three outputs of splitting a dataset.
+/// Relative weights for optional training, validation, and test partitions.
 ///
-/// Validation and test splits are `None` when their weights were zero.
+/// A zero weight omits that partition. At least one weight must be non-zero,
+/// and the combined weight must remain finite.
+///
+/// # Examples
+///
+/// ```
+/// use dataset_loader::splitting::SplitWeights;
+/// use typed_floats::tf32::PositiveFinite;
+///
+/// let weights = SplitWeights::try_new(
+/// 	PositiveFinite::new(0.0)?,
+/// 	PositiveFinite::new(3.0)?,
+/// 	PositiveFinite::new(1.0)?,
+/// )
+/// .expect("the total is positive and finite");
+/// # let _ = weights;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SplitWeights {
+	train_weight: PositiveFinite,
+	validate_weight: PositiveFinite,
+	test_weight: PositiveFinite,
+	sum: StrictlyPositiveFinite,
+}
+
+impl SplitWeights {
+	/// Creates split weights when their sum is finite and strictly positive.
+	///
+	/// Returns `None` when all weights are zero or when their sum overflows to
+	/// infinity.
+	pub const fn try_new(
+		train_weight: PositiveFinite,
+		validate_weight: PositiveFinite,
+		test_weight: PositiveFinite,
+	) -> Option<Self> {
+		let sum =
+			train_weight.get() + validate_weight.get() + test_weight.get();
+		let Ok(sum) = StrictlyPositiveFinite::new(sum) else {
+			return None;
+		};
+		Some(Self {
+			train_weight,
+			validate_weight,
+			test_weight,
+			sum,
+		})
+	}
+}
+
+/// The optional outputs of splitting a dataset.
+///
+/// A partition is `None` when its weight is zero. A requested partition can
+/// still be empty for a small dataset.
 ///
 /// # Examples
 ///
@@ -150,15 +203,15 @@ where
 /// # impl dataset_loader::splitting::Split for Part {
 /// #     fn split_type(&self) -> SplitType { self.0 }
 /// # }
-/// let output = SplitOutput::new(Part(SplitType::Train), None, None);
+/// let output = SplitOutput::new(Some(Part(SplitType::Train)), None, None);
 /// assert!(output.validate.is_none());
 /// ```
 pub struct SplitOutput<T>
 where
 	T: Split,
 {
-	/// Training portion; always present, but may be empty for an empty source.
-	pub train: T,
+	/// Training portion, absent when the training weight is zero.
+	pub train: Option<T>,
 	/// Validation portion, omitted when its weight is zero.
 	pub validate: Option<T>,
 	/// Test portion, omitted when its weight is zero.
@@ -171,7 +224,7 @@ where
 {
 	/// Constructs a split output from its three partitions.
 	pub fn new(
-		train: T,
+		train: Option<T>,
 		validate: Option<T>,
 		test: Option<T>,
 	) -> Self {
@@ -183,16 +236,16 @@ where
 	}
 }
 
-impl<T> From<(T, Option<T>, Option<T>)> for SplitOutput<T>
+impl<T> From<(Option<T>, Option<T>, Option<T>)> for SplitOutput<T>
 where
 	T: Split,
 {
-	fn from(value: (T, Option<T>, Option<T>)) -> Self {
+	fn from(value: (Option<T>, Option<T>, Option<T>)) -> Self {
 		Self::new(value.0, value.1, value.2)
 	}
 }
 
-impl<T> From<SplitOutput<T>> for (T, Option<T>, Option<T>)
+impl<T> From<SplitOutput<T>> for (Option<T>, Option<T>, Option<T>)
 where
 	T: Split,
 {
@@ -254,36 +307,98 @@ mod tests {
 
 	fn split_lengths(
 		dataset_len: usize,
-		train_weight: u8,
-		validate_weight: u8,
-		test_weight: u8,
-	) -> (usize, Option<usize>, Option<usize>) {
-		let output = TestDataset((0..dataset_len).collect()).into_split(
-			NonZeroU8::new(train_weight).expect("train weight must be nonzero"),
-			validate_weight,
-			test_weight,
-		);
+		train_weight: f32,
+		validate_weight: f32,
+		test_weight: f32,
+	) -> (Option<usize>, Option<usize>, Option<usize>) {
+		let weights = SplitWeights::try_new(
+			PositiveFinite::new(train_weight)
+				.expect("test train weight is valid"),
+			PositiveFinite::new(validate_weight)
+				.expect("test validation weight is valid"),
+			PositiveFinite::new(test_weight)
+				.expect("test test weight is valid"),
+		)
+		.expect("test weights have a valid sum");
+		let output =
+			TestDataset((0..dataset_len).collect()).into_split(weights);
 		(
-			output.train.len,
+			output.train.map(|split| split.len),
 			output.validate.map(|split| split.len),
 			output.test.map(|split| split.len),
 		)
 	}
 
 	#[test]
-	fn one_item_dataset_keeps_training_item_without_panicking() {
-		assert_eq!(split_lengths(1, 1, 1, 1), (1, Some(0), Some(0)));
+	fn one_item_dataset_reserves_training_item_when_weighted() {
+		assert_eq!(
+			split_lengths(1, 1.0, 1.0, 1.0),
+			(Some(1), Some(0), Some(0))
+		);
 	}
 
 	#[test]
 	fn large_weights_do_not_overflow_and_splits_cover_dataset() {
-		let lengths = split_lengths(100, u8::MAX, u8::MAX, u8::MAX);
-		assert_eq!(lengths.0 + lengths.1.unwrap() + lengths.2.unwrap(), 100);
-		assert!(lengths.0 > 0);
+		let lengths = split_lengths(100, 255.0, 255.0, 255.0);
+		assert_eq!(
+			lengths.0.unwrap() + lengths.1.unwrap() + lengths.2.unwrap(),
+			100
+		);
 	}
 
 	#[test]
 	fn empty_dataset_produces_empty_requested_splits() {
-		assert_eq!(split_lengths(0, 1, 1, 1), (0, Some(0), Some(0)));
+		assert_eq!(
+			split_lengths(0, 1.0, 1.0, 1.0),
+			(Some(0), Some(0), Some(0))
+		);
+	}
+
+	#[test]
+	fn fractional_weighted_lengths_round_up_before_training_receives_remainder()
+	{
+		assert_eq!(
+			split_lengths(10, 1.0, 1.0, 1.0),
+			(Some(2), Some(4), Some(4))
+		);
+	}
+
+	#[test]
+	fn unweighted_validate_and_test_leaves_all_to_train() {
+		assert_eq!(split_lengths(12, 1.0, 0.0, 0.0), (Some(12), None, None));
+	}
+
+	#[test]
+	fn unweighted_train_and_validate_leaves_all_to_test() {
+		assert_eq!(split_lengths(11, 0.0, 0.0, 1.0), (None, None, Some(11)));
+	}
+
+	#[test]
+	fn zero_training_weight_omits_training_split() {
+		assert_eq!(split_lengths(10, 0.0, 1.0, 1.0), (None, Some(5), Some(5)));
+	}
+
+	#[test]
+	fn zero_total_weight_is_rejected() {
+		assert!(
+			SplitWeights::try_new(
+				PositiveFinite::new(0.0).expect("zero is finite and positive"),
+				PositiveFinite::new(0.0).expect("zero is finite and positive"),
+				PositiveFinite::new(0.0).expect("zero is finite and positive"),
+			)
+			.is_none()
+		);
+	}
+
+	#[test]
+	fn non_finite_total_weight_is_rejected() {
+		assert!(
+			SplitWeights::try_new(
+				PositiveFinite::new(f32::MAX).expect("maximum is finite"),
+				PositiveFinite::new(f32::MAX).expect("maximum is finite"),
+				PositiveFinite::new(0.0).expect("zero is allowed"),
+			)
+			.is_none()
+		);
 	}
 }

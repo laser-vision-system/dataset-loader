@@ -30,12 +30,12 @@ use super::{
 /// #     hue::HueRange,
 /// # };
 /// #
-/// const ROTATION: HueRange = match HueRange::strict(-45, 45) {
+/// const RANGE: HueRange = match HueRange::try_new(-45, 45) {
 /// 	Ok(range) => range,
 /// 	Err(_) => panic!("invalid constant hue range"),
 /// };
 ///
-/// let _rotation = ROTATION;
+/// let _rotation = RANGE;
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct HueRange {
@@ -44,6 +44,21 @@ pub struct HueRange {
 }
 
 impl HueRange {
+	/// Creates a strict hue rotation range in the half-open degree range
+	/// `min..max`.
+	///
+	/// This function is `const` and can validate during compilation.
+	///
+	/// # Errors
+	///
+	/// Returns [`AugmentationError::InvalidHueRange`] when `min >= max`.
+	pub const fn try_new(
+		min: i32,
+		max: i32,
+	) -> Result<Self, AugmentationError> {
+		Self::strict(min, max)
+	}
+
 	/// Creates a range by ordering the supplied values.
 	///
 	/// The minimum and maximum are selected from the two input bounds.
@@ -122,7 +137,10 @@ impl HueRange {
 /// # 	HueRotate,
 /// # };
 /// #
-/// const RANGE: HueRange = HueRange::relaxed(-30, 30);
+/// const RANGE: HueRange = match HueRange::try_new(-45, 45) {
+/// 	Ok(range) => range,
+/// 	Err(_) => panic!("invalid constant hue range"),
+/// };
 /// const ROTATION: HueRotate = HueRotate::new(RANGE);
 /// ```
 #[derive(Clone, Debug)]

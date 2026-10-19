@@ -27,7 +27,7 @@ use super::{
 /// # 	Gaussian,
 /// # };
 /// #
-/// const SIGMA: BlurSigma = match BlurSigma::new(1.0) {
+/// const SIGMA: BlurSigma = match BlurSigma::try_new(1.0) {
 /// 	Ok(sigma) => sigma,
 /// 	Err(_) => panic!("invalid constant blur sigma"),
 /// };
@@ -71,7 +71,7 @@ impl ImageStep for Gaussian {
 /// 	RandomGaussian,
 /// };
 ///
-/// const RANGE: BlurSigmaRange = match BlurSigmaRange::new(0.25, 1.5) {
+/// const RANGE: BlurSigmaRange = match BlurSigmaRange::try_new(0.25, 1.5) {
 /// 	Ok(range) => range,
 /// 	Err(_) => panic!("invalid constant blur range"),
 /// };
@@ -95,10 +95,7 @@ impl Default for RandomGaussian {
 	/// Uses a random sigma from the half-open range `0.0..1.0`.
 	fn default() -> Self {
 		Self {
-			sigma: BlurSigmaRange {
-				min: 0.0,
-				max: 1.0,
-			},
+			sigma: BlurSigmaRange::default(),
 		}
 	}
 }
@@ -139,14 +136,14 @@ mod tests {
 	}
 
 	fn sigma(value: f32) -> BlurSigma {
-		BlurSigma::new(value).expect("the test sigma is valid")
+		BlurSigma::try_new(value).expect("the test sigma is valid")
 	}
 
 	fn range(
 		min: f32,
 		max: f32,
 	) -> BlurSigmaRange {
-		BlurSigmaRange::new(min, max).expect("the test range is valid")
+		BlurSigmaRange::try_new(min, max).expect("the test range is valid")
 	}
 
 	#[test]
@@ -201,7 +198,7 @@ mod tests {
 			(0.0, f32::NAN),
 		] {
 			assert!(matches!(
-				BlurSigmaRange::new(bounds.0, bounds.1),
+				BlurSigmaRange::try_new(bounds.0, bounds.1),
 				Err(AugmentationError::InvalidBlurSigmaRange)
 			));
 		}
@@ -211,7 +208,7 @@ mod tests {
 	fn fixed_sigma_rejects_negative_and_non_finite_values() {
 		for sigma in [-1.0, f32::INFINITY, f32::NAN] {
 			assert!(matches!(
-				BlurSigma::new(sigma),
+				BlurSigma::try_new(sigma),
 				Err(AugmentationError::InvalidBlurSigma)
 			));
 		}
@@ -219,11 +216,11 @@ mod tests {
 
 	#[test]
 	fn sigma_validation_is_const_evaluable() {
-		const FIXED: BlurSigma = match BlurSigma::new(1.0) {
+		const FIXED: BlurSigma = match BlurSigma::try_new(1.0) {
 			Ok(sigma) => sigma,
 			Err(_) => panic!("invalid test sigma"),
 		};
-		const RANDOM: BlurSigmaRange = match BlurSigmaRange::new(0.0, 1.0) {
+		const RANDOM: BlurSigmaRange = match BlurSigmaRange::try_new(0.0, 1.0) {
 			Ok(range) => range,
 			Err(_) => panic!("invalid test range"),
 		};
