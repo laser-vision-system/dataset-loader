@@ -290,7 +290,7 @@ mod tests {
 
 	impl Drop for TemporaryDataset {
 		fn drop(&mut self) {
-			let _ = std::fs::remove_dir_all(&self.0);
+			_ = std::fs::remove_dir_all(&self.0);
 		}
 	}
 
