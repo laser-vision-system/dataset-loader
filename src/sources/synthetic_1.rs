@@ -96,11 +96,6 @@ pub(crate) mod tests {
 	use image::DynamicImage;
 
 	use super::*;
-	const ITEM_PATH: &str = const_str::concat!(
-		super::super::RELATIVE_DATASETS_PATH,
-		"synthetic_1/images/"
-	);
-
 	use crate::{
 		LoaderError,
 		item::{
@@ -111,6 +106,11 @@ pub(crate) mod tests {
 			},
 		},
 	};
+
+	const ITEM_PATH: &str = const_str::concat!(
+		super::super::RELATIVE_DATASETS_PATH,
+		"synthetic_1/images/"
+	);
 
 	// Production loading uses the CSV index; these filename conversions support
 	// tests only.

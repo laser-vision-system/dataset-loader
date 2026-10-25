@@ -369,7 +369,7 @@ mod tests {
 	impl LaserItemType for DummyMapperInput {
 		type IntensityType = u8;
 
-		fn get_base_item(&self) -> &crate::item::BaseItem<Self::IntensityType> {
+		fn get_base_item(&self) -> &BaseItem<Self::IntensityType> {
 			&self.base
 		}
 	}
