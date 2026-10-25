@@ -12,7 +12,7 @@ pub use super::{
 	intensity::Intensity,
 	path::ImagePath,
 };
-use crate::Result;
+use crate::LoaderResult;
 
 /// The idea is that all items have this as a field, guaranteed by a trait
 /// method.
@@ -62,7 +62,7 @@ where
 	pub(super) fn resolve_root(
 		&mut self,
 		root: &Path,
-	) -> Result<()> {
+	) -> LoaderResult {
 		self.image_path.canonicalise_with(root)
 	}
 

@@ -8,7 +8,7 @@ use std::{
 use burn::data::dataset::transform::Mapper;
 
 use crate::{
-	Result,
+	LoaderResult,
 	dataset::{
 		FilterFn,
 		LaserDataset,
@@ -120,7 +120,7 @@ pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,
 	filters: &[FilterFn<AnalogousLaserItem>],
-) -> Result<AnalogousDataset<M, MO>>
+) -> LoaderResult<AnalogousDataset<M, MO>>
 where
 	M: Mapper<AnalogousLaserItem, MO> + Send + Sync,
 	MO: Send + Sync + Clone,

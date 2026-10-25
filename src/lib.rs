@@ -55,7 +55,7 @@ pub mod splitting;
 pub use self::{
 	error::{
 		LoaderError,
-		Result,
+		LoaderResult,
 	},
 	splitting::{
 		PositiveFinite,

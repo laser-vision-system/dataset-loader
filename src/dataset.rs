@@ -22,7 +22,7 @@ use crate::{
 	Splitable,
 	error::{
 		LoaderError,
-		Result,
+		LoaderResult,
 	},
 	item::{
 		LaserItem,
@@ -77,7 +77,7 @@ where
 	MO: Send + Sync + Clone,
 {
 	/// Create a CSV reader from a root directory.
-	fn create_reader(dataset_root: &Path) -> Result<FileReader> {
+	fn create_reader(dataset_root: &Path) -> LoaderResult<FileReader> {
 		let csv_file = dataset_root.join(INDEX_FILENAME);
 		#[cfg(test)]
 		println!("Reading: {}", csv_file.display());
@@ -89,7 +89,7 @@ where
 		mut reader: FileReader,
 		dataset_root: &Path,
 		filters: &[FilterFn<MI>],
-	) -> Result<Vec<MI>> {
+	) -> LoaderResult<Vec<MI>> {
 		reader
 			.deserialize::<MI>()
 			.filter_map(|res| {
@@ -131,7 +131,7 @@ where
 		mapper: M,
 		dataset_root_folder: P,
 		filters: &[FilterFn<MI>],
-	) -> Result<Self>
+	) -> LoaderResult<Self>
 	where
 		P: AsRef<Path>,
 	{
@@ -325,7 +325,9 @@ mod tests {
 	}
 
 	impl DummyMapperInput {
-		fn parse_intensity(name: &str) -> Result<Intensity<IntensityValType>> {
+		fn parse_intensity(
+			name: &str
+		) -> LoaderResult<Intensity<IntensityValType>> {
 			let intensity = name
 				.rsplit('_')
 				.collect::<Vec<_>>()
@@ -347,7 +349,7 @@ mod tests {
 
 		fn check_intensity(
 			intensity: Intensity<IntensityValType>
-		) -> Result<Intensity<IntensityValType>> {
+		) -> LoaderResult<Intensity<IntensityValType>> {
 			match *intensity {
 				..=53 => Ok(intensity),
 				_ => {
@@ -360,7 +362,7 @@ mod tests {
 
 		fn parse_and_check_intensity(
 			name: &str
-		) -> Result<Intensity<IntensityValType>> {
+		) -> LoaderResult<Intensity<IntensityValType>> {
 			let intensity = Self::parse_intensity(name)?;
 			Self::check_intensity(intensity)
 		}
@@ -383,7 +385,7 @@ mod tests {
 	impl TryFrom<ImagePath> for DummyMapperInput {
 		type Error = LoaderError;
 
-		fn try_from(value: ImagePath) -> Result<Self> {
+		fn try_from(value: ImagePath) -> LoaderResult<Self> {
 			let intensity =
 				Self::parse_and_check_intensity(&value.get_filename())?;
 			let base = BaseItem::new(value, intensity);
@@ -495,7 +497,7 @@ mod tests {
 
 	#[test]
 	#[ignore = "intended for visual inspection"]
-	fn try_new_dataset_dummy_correct() -> Result<DummyDataset> {
+	fn try_new_dataset_dummy_correct() -> LoaderResult<DummyDataset> {
 		let root = create_temporary_dataset();
 		LaserDataset::try_new(DummyMapper, root.root(), &[])
 			.inspect(|ds| println!("{ds}"))
@@ -503,7 +505,7 @@ mod tests {
 
 	#[test]
 	#[ignore = "intended for visual inspection"]
-	fn try_new_filtered_dataset_dummy_correct() -> Result<DummyDataset> {
+	fn try_new_filtered_dataset_dummy_correct() -> LoaderResult<DummyDataset> {
 		let root = create_temporary_dataset();
 		LaserDataset::try_new(
 			DummyMapper,
@@ -514,7 +516,7 @@ mod tests {
 	}
 
 	#[test]
-	fn try_new_dataset_correct() -> Result<LoadedDataset> {
+	fn try_new_dataset_correct() -> LoaderResult<LoadedDataset> {
 		let root = create_temporary_dataset();
 		let dataset = LaserDataset::try_new(LoadImage, root.root(), &[])?;
 		assert_eq!(dataset.len(), 2);
@@ -530,7 +532,7 @@ mod tests {
 	}
 
 	#[test]
-	fn try_new_filtered_dataset_correct() -> Result<LoadedDataset> {
+	fn try_new_filtered_dataset_correct() -> LoaderResult<LoadedDataset> {
 		let root = create_temporary_dataset();
 		let dataset = LaserDataset::try_new(
 			LoadImage,

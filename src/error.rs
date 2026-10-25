@@ -4,26 +4,8 @@
 ///
 /// Shorthand for a result with the [`LoaderError`] error type.
 ///
-/// # Examples
-///
-/// ```
-/// use dataset_loader::{
-/// 	LoaderError,
-/// 	Result,
-/// };
-///
-/// fn parse_intensity(value: &str) -> Result<u8> {
-/// 	value.parse().map_err(|error| {
-/// 		LoaderError::Intensity(format!("invalid intensity: {error}"))
-/// 	})
-/// }
-///
-/// assert_eq!(parse_intensity("12")?, 12);
-/// # Ok::<(), LoaderError>(())
-/// ```
-///
 /// [`Result`]: std::result::Result
-pub type Result<T> = std::result::Result<T, LoaderError>;
+pub type LoaderResult<T = ()> = std::result::Result<T, LoaderError>;
 
 /// The error type for all data loading operations.
 #[derive(Clone, Debug, thiserror::Error)]

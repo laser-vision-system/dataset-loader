@@ -12,7 +12,7 @@ use crate::{
 		FilterFn,
 		LaserDataset,
 	},
-	error::Result,
+	error::LoaderResult,
 	item::{
 		BaseItem,
 		LaserItem as _,
@@ -73,7 +73,7 @@ pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,
 	filters: &[FilterFn<Synthetic1Item>],
-) -> Result<Synthetic1Dataset<M, MO>>
+) -> LoaderResult<Synthetic1Dataset<M, MO>>
 where
 	M: Mapper<Synthetic1Item, MO> + Send + Sync,
 	MO: Send + Sync + Clone,
@@ -131,7 +131,7 @@ pub(crate) mod tests {
 		/// - If the last component of the filename is not an integer 0..=255
 		/// - If the path leads to an image claiming to be above an intensity of
 		///   53
-		fn try_from(value: ImagePath) -> Result<Self> {
+		fn try_from(value: ImagePath) -> LoaderResult<Self> {
 			let filename = value.get_filename();
 			let (_, intensity) =
 				filename.rsplit_once('_').ok_or_else(|| {
@@ -159,7 +159,7 @@ pub(crate) mod tests {
 	impl TryFrom<PathBuf> for Synthetic1Item {
 		type Error = LoaderError;
 
-		fn try_from(value: PathBuf) -> Result<Self> {
+		fn try_from(value: PathBuf) -> LoaderResult<Self> {
 			Self::try_from(ImagePath::try_from(value)?)
 		}
 	}
@@ -189,13 +189,13 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn try_from_pathbuf_correct_min() -> Result<Synthetic1Item> {
+	fn try_from_pathbuf_correct_min() -> LoaderResult<Synthetic1Item> {
 		let path = create_path(ITEM_PATH, "render_0000.png");
 		Synthetic1Item::try_from(path)
 	}
 
 	#[test]
-	fn try_from_pathbuf_correct_max() -> Result<Synthetic1Item> {
+	fn try_from_pathbuf_correct_max() -> LoaderResult<Synthetic1Item> {
 		let path = create_path(ITEM_PATH, "render_0053.png");
 		Synthetic1Item::try_from(path)
 	}
@@ -235,7 +235,7 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn load_image_after_pathbuf() -> Result<SuccessfulImage> {
+	fn load_image_after_pathbuf() -> LoaderResult<SuccessfulImage> {
 		let image = create_temporary_image("render_0053.png");
 		let item = Synthetic1Item::try_from(image.path().clone())?;
 		item.load().map(Into::into)

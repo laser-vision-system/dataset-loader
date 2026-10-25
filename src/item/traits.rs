@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
 	LoaderError,
-	Result,
+	LoaderResult,
 };
 
 /// A dataset item that exposes its common path, position, and intensity.
@@ -61,7 +61,7 @@ pub trait LaserItemBase: LaserItemType {
 	fn resolve_paths(
 		&mut self,
 		root: &Path,
-	) -> Result<()> {
+	) -> LoaderResult {
 		self.get_base_item_mut().resolve_root(root)
 	}
 }
@@ -96,7 +96,7 @@ pub trait LaserItem: LaserItemType {
 	/// [`LoaderError::ImageLoad`]:
 	///
 	/// - If the image could not be loaded at the provided path
-	fn load(&self) -> Result<DynamicImage> {
+	fn load(&self) -> LoaderResult<DynamicImage> {
 		let image = image::open(self.get_image_path()).map_err(|why| {
 			LoaderError::ImageLoad(format!(
 				"unable to load image at '{}': {}",

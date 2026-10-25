@@ -8,7 +8,7 @@ use std::{
 use burn::data::dataset::transform::Mapper;
 
 use crate::{
-	Result,
+	LoaderResult,
 	dataset::{
 		FilterFn,
 		LaserDataset,
@@ -92,7 +92,7 @@ pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,
 	filters: &[FilterFn<Synthetic2Item>],
-) -> Result<Synthetic2Dataset<M, MO>>
+) -> LoaderResult<Synthetic2Dataset<M, MO>>
 where
 	M: Mapper<Synthetic2Item, MO> + Send + Sync,
 	MO: Send + Sync + Clone,
@@ -150,7 +150,7 @@ mod tests {
 		/// - If the last component of the filename is not an integer 0..=255
 		/// - If the path leads to an image claiming to be above an intensity of
 		///   100
-		fn try_from(value: ImagePath) -> Result<Self> {
+		fn try_from(value: ImagePath) -> LoaderResult<Self> {
 			let filename = value.get_filename();
 			let mut parts = filename.rsplit('_');
 			let external_intensity = parts.next().ok_or_else(|| {
@@ -184,7 +184,7 @@ mod tests {
 	impl TryFrom<PathBuf> for Synthetic2Item {
 		type Error = LoaderError;
 
-		fn try_from(value: PathBuf) -> Result<Self> {
+		fn try_from(value: PathBuf) -> LoaderResult<Self> {
 			Self::try_from(ImagePath::try_from(value)?)
 		}
 	}
@@ -192,7 +192,7 @@ mod tests {
 	fn parse_source_intensity(
 		value: &str,
 		max: u8,
-	) -> Result<IntensityValType> {
+	) -> LoaderResult<IntensityValType> {
 		let intensity = value.parse::<IntensityValType>().map_err(|why| {
 			LoaderError::Intensity(format!("invalid filename intensity: {why}"))
 		})?;
@@ -229,13 +229,13 @@ mod tests {
 	}
 
 	#[test]
-	fn try_from_pathbuf_correct_min() -> Result<Synthetic2Item> {
+	fn try_from_pathbuf_correct_min() -> LoaderResult<Synthetic2Item> {
 		let path = create_path(ITEM_PATH, "render_0000_0000.png");
 		Synthetic2Item::try_from(path)
 	}
 
 	#[test]
-	fn try_from_pathbuf_correct_max() -> Result<Synthetic2Item> {
+	fn try_from_pathbuf_correct_max() -> LoaderResult<Synthetic2Item> {
 		let path = create_path(ITEM_PATH, "render_0100_0100.png");
 		Synthetic2Item::try_from(path)
 	}
@@ -279,7 +279,7 @@ mod tests {
 	}
 
 	#[test]
-	fn load_image_after_pathbuf() -> Result<SuccessfulImage> {
+	fn load_image_after_pathbuf() -> LoaderResult<SuccessfulImage> {
 		let image = create_temporary_image("render_0100_0100.png");
 		let item = Synthetic2Item::try_from(image.path().clone())?;
 		item.load().map(Into::into)

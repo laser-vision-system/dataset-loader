@@ -19,7 +19,7 @@ use std::{
 
 use crate::error::{
 	LoaderError,
-	Result,
+	LoaderResult,
 };
 
 /// A path to a dataset image.
@@ -57,7 +57,7 @@ impl ImagePath {
 	pub fn canonicalise_with(
 		&mut self,
 		root: &Path,
-	) -> Result<()> {
+	) -> LoaderResult {
 		let absolute = root.join(&self.inner);
 		self.inner = absolute.canonicalize().map_err(|why| {
 			LoaderError::Path(format!(
@@ -118,7 +118,7 @@ impl TryFrom<PathBuf> for ImagePath {
 	/// # Errors
 	///
 	/// Returns [`LoaderError::Path`] when the path has no extension.
-	fn try_from(path: PathBuf) -> Result<Self> {
+	fn try_from(path: PathBuf) -> LoaderResult<Self> {
 		path.extension().ok_or(LoaderError::Path(format!(
 			"path is not a file or has no extension: {}",
 			path.display()
@@ -177,7 +177,7 @@ mod tests {
 	}
 
 	#[test]
-	fn create_image_path_correct() -> Result<ImagePath> {
+	fn create_image_path_correct() -> LoaderResult<ImagePath> {
 		let path = PathBuf::from("./src/item/path.rs");
 		ImagePath::try_from(path)
 	}
