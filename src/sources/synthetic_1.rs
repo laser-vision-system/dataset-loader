@@ -100,7 +100,7 @@ pub(crate) mod tests {
 		LoaderError,
 		item::{
 			ImagePath,
-			tests::{
+			base_item::tests::{
 				create_path,
 				create_temporary_image,
 			},
@@ -229,7 +229,7 @@ pub(crate) mod tests {
 
 	#[test]
 	fn try_from_pathbuf_incorrect_file() {
-		let image_path = crate::item::tests::create_path(ITEM_PATH, "");
+		let image_path = create_path(ITEM_PATH, "");
 		let res = Synthetic1Item::try_from(image_path);
 		res.unwrap_err();
 	}

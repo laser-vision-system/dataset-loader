@@ -112,24 +112,24 @@ mod tests {
 		},
 	};
 
-	use super::*;
-	const ITEM_PATH: &str = const_str::concat!(
-		super::super::RELATIVE_DATASETS_PATH,
-		"synthetic_2/images/"
-	);
-
 	use image::DynamicImage;
 
+	use super::*;
 	use crate::{
 		LoaderError,
 		item::{
 			ImagePath,
-			tests::{
+			base_item::tests::{
 				create_path,
 				create_temporary_image,
 			},
 		},
 	};
+
+	const ITEM_PATH: &str = const_str::concat!(
+		super::super::RELATIVE_DATASETS_PATH,
+		"synthetic_2/images/"
+	);
 
 	// Production loading uses the CSV index; these filename conversions support
 	// tests only.
@@ -273,7 +273,7 @@ mod tests {
 
 	#[test]
 	fn try_from_pathbuf_incorrect_file() {
-		let image_path = crate::item::tests::create_path(ITEM_PATH, "");
+		let image_path = create_path(ITEM_PATH, "");
 		let res = Synthetic2Item::try_from(image_path);
 		res.unwrap_err();
 	}
