@@ -257,28 +257,20 @@ mod tests {
 	//! The tests use a mirror of the Synthetic 1 dataset.
 
 	use std::{
-		fmt::Display,
 		path::PathBuf,
-		process::{
-			ExitCode,
-			Termination,
-		},
 		sync::atomic,
 	};
 
 	use image::RgbImage;
-	use serde::Deserialize;
 
 	use super::*;
-	use crate::item::{
-		BaseItem,
-		ImagePath,
-		Intensity,
-		LaserItemBase,
-		LaserItemType,
+	use crate::{
+		item::{
+			Intensity,
+			LaserItem,
+		},
+		sources::StandardItem,
 	};
-
-	type IntensityValType = u8;
 
 	struct TemporaryDataset(PathBuf);
 
@@ -312,146 +304,35 @@ mod tests {
 		}
 		std::fs::write(
 			root.join(INDEX_FILENAME),
-			"relative_path,intensity\nimages/render_0009.png,9\nimages/render_0010.png,10\n",
+			"relative_path,position,intensity\nimages/render_0009.png,front,9.0\nimages/render_0010.png,side,10.0\n",
 		)
 		.expect("temporary dataset index should be written");
 		TemporaryDataset(root)
 	}
 
-	#[derive(Clone, Debug, Deserialize)]
-	pub struct DummyMapperInput {
-		#[serde(flatten)]
-		base: BaseItem<IntensityValType>,
-	}
+	struct StandardItemMapper;
 
-	impl DummyMapperInput {
-		fn parse_intensity(
-			name: &str
-		) -> LoaderResult<Intensity<IntensityValType>> {
-			let intensity = name
-				.rsplit('_')
-				.collect::<Vec<_>>()
-				.first()
-				.ok_or_else(|| {
-					LoaderError::Path(
-						"file name must contain an underscore (_)".into(),
-					)
-				})?
-				.to_string();
-			let intensity: Intensity<IntensityValType> =
-				intensity.parse().map_err(|why| {
-					LoaderError::Intensity(format!(
-						"last component of the filename must be an integer 0..=255: {why}"
-					))
-				})?;
-			Ok(intensity)
-		}
-
-		fn check_intensity(
-			intensity: Intensity<IntensityValType>
-		) -> LoaderResult<Intensity<IntensityValType>> {
-			match *intensity {
-				..=53 => Ok(intensity),
-				_ => {
-					Err(LoaderError::Intensity(
-						"No image with this intensity".into(),
-					))
-				},
-			}
-		}
-
-		fn parse_and_check_intensity(
-			name: &str
-		) -> LoaderResult<Intensity<IntensityValType>> {
-			let intensity = Self::parse_intensity(name)?;
-			Self::check_intensity(intensity)
-		}
-	}
-
-	impl LaserItemType for DummyMapperInput {
-		type IntensityType = u8;
-
-		fn get_base_item(&self) -> &BaseItem<Self::IntensityType> {
-			&self.base
-		}
-	}
-
-	impl LaserItemBase for DummyMapperInput {
-		fn get_base_item_mut(&mut self) -> &mut BaseItem<Self::IntensityType> {
-			&mut self.base
-		}
-	}
-
-	impl TryFrom<ImagePath> for DummyMapperInput {
-		type Error = LoaderError;
-
-		fn try_from(value: ImagePath) -> LoaderResult<Self> {
-			let intensity =
-				Self::parse_and_check_intensity(&value.get_filename())?;
-			let base = BaseItem::new(value, intensity);
-			Ok(Self {
-				base,
-			})
-		}
-	}
-
-	impl Termination for DummyMapperInput {
-		fn report(self) -> std::process::ExitCode {
-			ExitCode::SUCCESS
-		}
-	}
-
-	struct DummyMapper;
-
-	impl Mapper<DummyMapperInput, DummyMapperInput> for DummyMapper {
+	impl Mapper<StandardItem, StandardItem> for StandardItemMapper {
 		fn map(
 			&self,
-			item: &DummyMapperInput,
-		) -> DummyMapperInput {
+			item: &StandardItem,
+		) -> StandardItem {
 			item.clone()
 		}
 	}
 
-	type DummyDataset =
-		LaserDataset<DummyMapper, DummyMapperInput, DummyMapperInput>;
-
-	type DummyDatasetSplit =
-		LaserDatasetSplit<DummyMapper, DummyMapperInput, DummyMapperInput>;
-
-	impl Termination for DummyDataset {
-		fn report(self) -> ExitCode {
-			ExitCode::SUCCESS
-		}
-	}
-
-	impl Display for DummyDatasetSplit {
-		fn fmt(
-			&self,
-			f: &mut std::fmt::Formatter<'_>,
-		) -> std::fmt::Result {
-			let items: Vec<_> = self
-				.dataset
-				.iter()
-				.map(|item| item.simple_display().to_string())
-				.collect();
-			let string = items.join("\n");
-			write!(f, "{string}")
-		}
-	}
-
-	#[expect(dead_code, reason = "Dummy input for mapping")]
 	#[derive(Clone, Debug)]
 	struct LoadedItem {
 		image: RgbImage,
-		intensity: Intensity<IntensityValType>,
+		intensity: Intensity<f32>,
 	}
 
 	struct LoadImage;
 
-	impl Mapper<DummyMapperInput, LoadedItem> for LoadImage {
+	impl Mapper<StandardItem, LoadedItem> for LoadImage {
 		fn map(
 			&self,
-			item: &DummyMapperInput,
+			item: &StandardItem,
 		) -> LoadedItem {
 			LoadedItem {
 				image: item.load().unwrap().into(),
@@ -460,103 +341,64 @@ mod tests {
 		}
 	}
 
-	type LoadedDataset = LaserDataset<LoadImage, DummyMapperInput, LoadedItem>;
-
-	type LoadedDatasetSplit =
-		LaserDatasetSplit<LoadImage, DummyMapperInput, LoadedItem>;
-
-	impl Termination for LoadedDataset {
-		fn report(self) -> ExitCode {
-			ExitCode::SUCCESS
-		}
-	}
-
-	impl Termination for LoadedDatasetSplit {
-		fn report(self) -> ExitCode {
-			ExitCode::SUCCESS
-		}
-	}
-
-	#[expect(
-		dead_code,
-		reason = "Used to allow tests to return a type for chaining"
-	)]
-	struct SuccessfulImage(RgbImage);
-
-	impl From<RgbImage> for SuccessfulImage {
-		fn from(value: RgbImage) -> Self {
-			Self(value)
-		}
-	}
-
-	impl Termination for SuccessfulImage {
-		fn report(self) -> ExitCode {
-			ExitCode::SUCCESS
-		}
+	#[test]
+	#[ignore = "intended for visual inspection"]
+	fn try_new_dataset_standard_item_correct() -> LoaderResult<()> {
+		let root = create_temporary_dataset();
+		let dataset =
+			LaserDataset::try_new(StandardItemMapper, root.root(), &[])?;
+		println!("{dataset}");
+		Ok(())
 	}
 
 	#[test]
 	#[ignore = "intended for visual inspection"]
-	fn try_new_dataset_dummy_correct() -> LoaderResult<DummyDataset> {
+	fn try_new_filtered_dataset_standard_item_correct() -> LoaderResult<()> {
 		let root = create_temporary_dataset();
-		LaserDataset::try_new(DummyMapper, root.root(), &[])
-			.inspect(|ds| println!("{ds}"))
-	}
-
-	#[test]
-	#[ignore = "intended for visual inspection"]
-	fn try_new_filtered_dataset_dummy_correct() -> LoaderResult<DummyDataset> {
-		let root = create_temporary_dataset();
-		LaserDataset::try_new(
-			DummyMapper,
+		let dataset = LaserDataset::try_new(
+			StandardItemMapper,
 			root.root(),
-			&[Box::new(|item| matches!(*item.get_intensity(), 0..10))],
-		)
-		.inspect(|ds| println!("{ds}"))
+			&[Box::new(|item: &StandardItem| *item.get_intensity() < 10.0)],
+		)?;
+		println!("{dataset}");
+		Ok(())
 	}
 
 	#[test]
-	fn try_new_dataset_correct() -> LoaderResult<LoadedDataset> {
+	fn try_new_dataset_correct() -> LoaderResult<()> {
 		let root = create_temporary_dataset();
 		let dataset = LaserDataset::try_new(LoadImage, root.root(), &[])?;
 		assert_eq!(dataset.len(), 2);
-		assert_eq!(
-			dataset
-				.get(0)
-				.expect("dataset item exists")
-				.image
-				.dimensions(),
-			(1, 1)
-		);
-		Ok(dataset)
+		let item = dataset.get(0).expect("dataset item exists");
+		assert_eq!(item.image.dimensions(), (1, 1));
+		assert!([9.0, 10.0].contains(&*item.intensity));
+		Ok(())
 	}
 
 	#[test]
-	fn try_new_filtered_dataset_correct() -> LoaderResult<LoadedDataset> {
+	fn try_new_filtered_dataset_correct() -> LoaderResult<()> {
 		let root = create_temporary_dataset();
 		let dataset = LaserDataset::try_new(
 			LoadImage,
 			root.root(),
-			&[Box::new(|item| item.get_intensity() != Intensity::from(9))],
+			&[Box::new(|item: &StandardItem| {
+				item.get_intensity() != Intensity::from(9.0)
+			})],
 		)?;
 		assert_eq!(dataset.len(), 1);
-		assert_eq!(
-			dataset
-				.get(0)
-				.expect("filtered dataset item exists")
-				.image
-				.dimensions(),
-			(1, 1)
-		);
-		Ok(dataset)
+		let item = dataset.get(0).expect("filtered dataset item exists");
+		assert_eq!(item.image.dimensions(), (1, 1));
+		assert_eq!(*item.intensity, 10.0);
+		Ok(())
 	}
 
 	#[test]
 	#[ignore = "intended for visual inspection"]
-	fn split_dataset_dummy_correct() {
+	fn split_dataset_standard_item_correct() {
 		let root = create_temporary_dataset();
 		let dataset =
-			LaserDataset::try_new(DummyMapper, root.root(), &[]).unwrap();
+			LaserDataset::try_new(StandardItemMapper, root.root(), &[])
+				.unwrap();
 		let weights = crate::splitting::SplitWeights::try_new(
 			typed_floats::tf32::PositiveFinite::new(80.0).unwrap(),
 			typed_floats::tf32::PositiveFinite::new(15.0).unwrap(),
@@ -566,7 +408,7 @@ mod tests {
 		let splits = dataset.into_split(weights);
 		let (train, validate, test) = splits.into();
 		println!(
-			"\n ===== Train present: {}\n ===== Validate present: {}\n===== Test present: {}",
+			"\n ===== Train present: {}\n ===== Validate present: {}\n ===== Test present: {}",
 			train.is_some(),
 			validate.is_some(),
 			test.is_some()
