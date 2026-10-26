@@ -36,7 +36,7 @@ pub trait LaserItemType {
 	/// Returns source-specific field names and their display values.
 	///
 	/// The default implementation returns an empty list.
-	fn source_fields(&self) -> Vec<(&'static str, String)> {
+	fn source_fields(&self) -> Vec<(String, String)> {
 		Vec::new()
 	}
 }

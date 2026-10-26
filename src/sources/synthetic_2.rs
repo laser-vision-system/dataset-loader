@@ -57,8 +57,11 @@ impl LaserItemType for Synthetic2Item {
 		&self.base
 	}
 
-	fn source_fields(&self) -> Vec<(&'static str, String)> {
-		vec![("External intensity", self.external_intensity.to_string())]
+	fn source_fields(&self) -> Vec<(String, String)> {
+		vec![(
+			"External intensity".to_owned(),
+			self.external_intensity.to_string(),
+		)]
 	}
 }
 
