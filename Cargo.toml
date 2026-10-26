@@ -17,6 +17,7 @@ rand = "0.10"
 serde = { version = "1", default-features = false, features = [
 	"derive",
 ]}
+serde_with = "3"
 thiserror = "2.0"
 typed_floats = "1"
 
