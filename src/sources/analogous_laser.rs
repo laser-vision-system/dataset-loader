@@ -8,7 +8,7 @@ use std::{
 use burn::data::dataset::transform::Mapper;
 
 use crate::{
-	Result,
+	LoaderResult,
 	dataset::{
 		FilterFn,
 		LaserDataset,
@@ -78,11 +78,14 @@ impl LaserItemType for AnalogousLaserItem {
 		&self.base
 	}
 
-	fn source_fields(&self) -> Vec<(&'static str, String)> {
+	fn source_fields(&self) -> Vec<(String, String)> {
 		vec![
-			("Saturation", self.saturation.to_string()),
-			("ExposureAbsolute", self.exposure_absolute.to_string()),
-			("Gamma", self.gamma.to_string()),
+			("Saturation".to_owned(), self.saturation.to_string()),
+			(
+				"ExposureAbsolute".to_owned(),
+				self.exposure_absolute.to_string(),
+			),
+			("Gamma".to_owned(), self.gamma.to_string()),
 		]
 	}
 }
@@ -120,7 +123,7 @@ pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,
 	filters: &[FilterFn<AnalogousLaserItem>],
-) -> Result<AnalogousDataset<M, MO>>
+) -> LoaderResult<AnalogousDataset<M, MO>>
 where
 	M: Mapper<AnalogousLaserItem, MO> + Send + Sync,
 	MO: Send + Sync + Clone,

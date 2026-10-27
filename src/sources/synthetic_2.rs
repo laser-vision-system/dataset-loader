@@ -8,7 +8,7 @@ use std::{
 use burn::data::dataset::transform::Mapper;
 
 use crate::{
-	Result,
+	LoaderResult,
 	dataset::{
 		FilterFn,
 		LaserDataset,
@@ -57,8 +57,11 @@ impl LaserItemType for Synthetic2Item {
 		&self.base
 	}
 
-	fn source_fields(&self) -> Vec<(&'static str, String)> {
-		vec![("External intensity", self.external_intensity.to_string())]
+	fn source_fields(&self) -> Vec<(String, String)> {
+		vec![(
+			"External intensity".to_owned(),
+			self.external_intensity.to_string(),
+		)]
 	}
 }
 
@@ -92,7 +95,7 @@ pub fn get_dataset<M, MO, P>(
 	mapper: M,
 	dataset_root_folder: P,
 	filters: &[FilterFn<Synthetic2Item>],
-) -> Result<Synthetic2Dataset<M, MO>>
+) -> LoaderResult<Synthetic2Dataset<M, MO>>
 where
 	M: Mapper<Synthetic2Item, MO> + Send + Sync,
 	MO: Send + Sync + Clone,
@@ -112,24 +115,24 @@ mod tests {
 		},
 	};
 
-	use super::*;
-	const ITEM_PATH: &str = const_str::concat!(
-		super::super::RELATIVE_DATASETS_PATH,
-		"synthetic_2/images/"
-	);
-
 	use image::DynamicImage;
 
+	use super::*;
 	use crate::{
 		LoaderError,
 		item::{
 			ImagePath,
-			tests::{
+			base_item::tests::{
 				create_path,
 				create_temporary_image,
 			},
 		},
 	};
+
+	const ITEM_PATH: &str = const_str::concat!(
+		super::super::RELATIVE_DATASETS_PATH,
+		"synthetic_2/images/"
+	);
 
 	// Production loading uses the CSV index; these filename conversions support
 	// tests only.
@@ -150,7 +153,7 @@ mod tests {
 		/// - If the last component of the filename is not an integer 0..=255
 		/// - If the path leads to an image claiming to be above an intensity of
 		///   100
-		fn try_from(value: ImagePath) -> Result<Self> {
+		fn try_from(value: ImagePath) -> LoaderResult<Self> {
 			let filename = value.get_filename();
 			let mut parts = filename.rsplit('_');
 			let external_intensity = parts.next().ok_or_else(|| {
@@ -184,7 +187,7 @@ mod tests {
 	impl TryFrom<PathBuf> for Synthetic2Item {
 		type Error = LoaderError;
 
-		fn try_from(value: PathBuf) -> Result<Self> {
+		fn try_from(value: PathBuf) -> LoaderResult<Self> {
 			Self::try_from(ImagePath::try_from(value)?)
 		}
 	}
@@ -192,7 +195,7 @@ mod tests {
 	fn parse_source_intensity(
 		value: &str,
 		max: u8,
-	) -> Result<IntensityValType> {
+	) -> LoaderResult<IntensityValType> {
 		let intensity = value.parse::<IntensityValType>().map_err(|why| {
 			LoaderError::Intensity(format!("invalid filename intensity: {why}"))
 		})?;
@@ -229,13 +232,13 @@ mod tests {
 	}
 
 	#[test]
-	fn try_from_pathbuf_correct_min() -> Result<Synthetic2Item> {
+	fn try_from_pathbuf_correct_min() -> LoaderResult<Synthetic2Item> {
 		let path = create_path(ITEM_PATH, "render_0000_0000.png");
 		Synthetic2Item::try_from(path)
 	}
 
 	#[test]
-	fn try_from_pathbuf_correct_max() -> Result<Synthetic2Item> {
+	fn try_from_pathbuf_correct_max() -> LoaderResult<Synthetic2Item> {
 		let path = create_path(ITEM_PATH, "render_0100_0100.png");
 		Synthetic2Item::try_from(path)
 	}
@@ -273,13 +276,13 @@ mod tests {
 
 	#[test]
 	fn try_from_pathbuf_incorrect_file() {
-		let image_path = crate::item::tests::create_path(ITEM_PATH, "");
+		let image_path = create_path(ITEM_PATH, "");
 		let res = Synthetic2Item::try_from(image_path);
 		res.unwrap_err();
 	}
 
 	#[test]
-	fn load_image_after_pathbuf() -> Result<SuccessfulImage> {
+	fn load_image_after_pathbuf() -> LoaderResult<SuccessfulImage> {
 		let image = create_temporary_image("render_0100_0100.png");
 		let item = Synthetic2Item::try_from(image.path().clone())?;
 		item.load().map(Into::into)

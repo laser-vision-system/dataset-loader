@@ -13,21 +13,6 @@
 //! Dataset source modules expose item types and `get_dataset` constructors.
 //! The [`augmentation`] module provides composable image transforms, and
 //! [`splitting`] provides weighted train/validation/test partitions.
-//!
-//! # Examples
-//!
-//! ```
-//! use dataset_loader::augmentation::{
-//! 	ImageStep as _,
-//! 	NoOp,
-//! };
-//! use image::RgbImage;
-//! use rand::SeedableRng as _;
-//!
-//! let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-//! let image = NoOp.apply(RgbImage::new(1, 1), &mut rng);
-//! assert_eq!(image.dimensions(), (1, 1));
-//! ```
 
 #![cfg_attr(
 	test,
@@ -55,7 +40,7 @@ pub mod splitting;
 pub use self::{
 	error::{
 		LoaderError,
-		Result,
+		LoaderResult,
 	},
 	splitting::{
 		PositiveFinite,
