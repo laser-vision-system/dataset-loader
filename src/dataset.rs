@@ -206,7 +206,7 @@ where
 		let items: Vec<_> = self
 			.dataset
 			.iter()
-			.filter_map(|item| item.ok())
+			.filter_map(Result::ok)
 			.map(|item| item.simple_display().to_string())
 			.collect();
 		let string = items.join("\n");
