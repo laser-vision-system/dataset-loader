@@ -256,16 +256,21 @@ where
 
 #[cfg(test)]
 mod tests {
+	use burn::data::dataset::{
+		DatasetError,
+		InMemDataset,
+	};
+
 	use super::*;
 
-	struct TestDataset(Vec<usize>);
+	struct TestDataset(InMemDataset<usize>);
 
 	impl Dataset<usize> for TestDataset {
 		fn get(
 			&self,
 			index: usize,
-		) -> Option<usize> {
-			self.0.get(index).copied()
+		) -> Result<usize, DatasetError> {
+			self.0.get(index)
 		}
 
 		fn len(&self) -> usize {
@@ -320,8 +325,8 @@ mod tests {
 				.expect("test test weight is valid"),
 		)
 		.expect("test weights have a valid sum");
-		let output =
-			TestDataset((0..dataset_len).collect()).into_split(weights);
+		let output = TestDataset(InMemDataset::new((0..dataset_len).collect()))
+			.into_split(weights);
 		(
 			output.train.map(|split| split.len),
 			output.validate.map(|split| split.len),

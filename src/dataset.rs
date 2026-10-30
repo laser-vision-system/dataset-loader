@@ -7,6 +7,7 @@ use std::{
 
 use burn::data::dataset::{
 	Dataset,
+	DatasetError,
 	InMemDataset,
 	transform::{
 		Mapper,
@@ -156,7 +157,7 @@ where
 	fn get(
 		&self,
 		index: usize,
-	) -> Option<MO> {
+	) -> Result<MO, DatasetError> {
 		self.dataset.get(index)
 	}
 
@@ -205,6 +206,7 @@ where
 		let items: Vec<_> = self
 			.dataset
 			.iter()
+			.filter_map(Result::ok)
 			.map(|item| item.simple_display().to_string())
 			.collect();
 		let string = items.join("\n");
@@ -232,7 +234,7 @@ where
 	fn get(
 		&self,
 		index: usize,
-	) -> Option<MO> {
+	) -> Result<MO, DatasetError> {
 		self.dataset.get(index)
 	}
 

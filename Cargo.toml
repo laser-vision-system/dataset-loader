@@ -4,7 +4,7 @@ edition = "2024"
 version = "0.1.0"
 
 [dependencies]
-burn = { version = "0.21", default-features = false, features = [
+burn = { version = "0.22", default-features = false, features = [
 	"std",
 	"dataset",
 ]}
@@ -34,6 +34,7 @@ broken_intra_doc_links = "deny" # All links should be correct.
 
 [lints.clippy]
 tabs_in_doc_comments = "allow" # Tabs expected for indentation.
+empty_docs = "deny" # Unhelpful clearing of documentation lint.
 
 # ===== pedantic group lints ======
 
@@ -58,6 +59,7 @@ exhaustive_structs = "allow" # TODO: Check if this is only for public enums.
 implicit_return = "allow" # You are encouraged to omit `return`.
 impl_trait_in_params = "allow" # `impl Trait` hides from turbofish (`::<>`) which can be useful in some scenarios. Think of it like an anonymouse generic type.
 inline_modules = "allow" # Currently complains about inline test modules.
+inline_trait_bounds = "allow" # Do not use inline bounds when there is more than one generic parameter.
 iter_over_hash_type = "allow" # We do not care about order.
 let_underscore_untyped = "allow" # Overlaps with `let_underscore_must_use`, little other value added.
 missing_inline_in_public_items = "allow" # TODO: Maybe upgrade in the future for performance.
@@ -78,7 +80,6 @@ empty_structs_with_brackets = "warn" # Helps readability, but could be a breakin
 expect_used = "warn" # Expect should be used as sparingly as possible.
 filetype_is_file = "warn" # Encourage using `!is_dir()` instead.
 if_then_some_else_none = "warn" # Encourages a simpler pattern.
-inline_trait_bounds = "warn" # Do not use inline bounds when there is more than one generic parameter.
 let_underscore_must_use = "warn" # Do not discard these types. # TODO: Upgrade in the future.
 lossy_float_literal = "warn" # Alerts to potential issues.
 map_err_ignore = "warn" # Will cause a loss of error details. # TODO: Upgrade in the future.
